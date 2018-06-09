@@ -1,0 +1,1 @@
+docker run --rm -it -v $(pwd):/home jjanzic/docker-python3-opencv "bash"
