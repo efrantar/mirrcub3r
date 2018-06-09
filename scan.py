@@ -12,10 +12,10 @@ class IpCam:
         self.url = url
 
     def frame(self):
-       frame = urllib.request.urlopen(self.url)
-       frame = np.array(bytearray(frame.read()), dtype=np.uint8)
-       frame = cv.imdecode(frame, -1) # choose encoding automatically -> default: BGR
-       return frame
+        frame = urllib.request.urlopen(self.url)
+        frame = np.array(bytearray(frame.read()), dtype=np.uint8)
+        frame = cv.imdecode(frame, -1) # choose encoding automatically -> default: BGR
+        return frame
 
 
 class FileCam:
