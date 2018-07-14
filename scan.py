@@ -58,7 +58,7 @@ class CubeScanner:
         
         self.step = 0
         # Makes sure that skipped positions will have max value after shifting
-        self.scans = np.full((len(schedule), 3), 180 - SHIFT)
+        self.scans = np.full((len(schedule), 3), 180 - CubeScanner.SHIFT)
 
     def next(self):
         frame = cam.frame()
@@ -74,7 +74,7 @@ class CubeScanner:
 
     def finish(self):
         colors = np.zeros(len(self.schedule), dtype=np.int) # white defaults to 0
-        asc_hue = np.argsort((self.scans[:, 0] + SHIFT) % 181) # max value is 180
+        asc_hue = np.argsort((self.scans[:, 0] + CubeScanner.SHIFT) % 181) # max value is 180
         for i, pos in enumerate(
             asc_hue[
                 # Skip white positions
@@ -105,6 +105,8 @@ def draw_positions(image, positions, size2):
     return image
 
 
+# test_data()
+
 SCHEDULE_TEST = np.array([i // 9 if i % 9 != 4 else -1 for i in range(54)])
  
 STEP = 300
@@ -116,7 +118,7 @@ for i in range(6):
         if j != 4:
             POSITIONS_TEST[9 * i + j, :] = POS_GRID[j // 3][j % 3]
 
-cam = FileCam('scans/20180609113719')
+cam = FileCam('scans/20180609192123')
 scanner = CubeScanner(cam, SCHEDULE_TEST, POSITIONS_TEST, 50, per_col=8)
 
 while not scanner.complete():
