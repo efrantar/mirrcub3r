@@ -1,4 +1,181 @@
-from defs import *
+import math
+
+
+N_CORNERS = 8
+
+URF = 0
+UFL = 1
+ULB = 2
+UBR = 3
+DFR = 4
+DLF = 5
+DBL = 6
+DRB = 7
+
+N_EDGES = 12
+
+UR = 0
+UF = 1
+UL = 2
+UB = 3
+DR = 4
+DF = 5
+DL = 6
+DB = 7
+FR = 8
+FL = 9
+BL = 10
+BR = 11
+
+
+def _mul(p1, p2):
+    p3 = [-1] * len(p1)
+    for i in range(len(p1)):
+        p3[i] = p1[p2[i]]
+    return p3
+
+CORNERS = 0
+EDGES = 1
+
+_MUL = [
+    lambda c1, c2: c1._mul_corners(c2), # CORNERS
+    lambda c1, c2: c1._mul_edges(c2) # EDGES
+]
+
+
+TWIST = 0
+FLIP = 1
+FRBR = 2
+URFDLF = 3
+URUL = 4
+UBDF = 5
+URDF = 6
+
+def _encode1(a, basis):
+    c = 0
+    for i in range(len(a) - 1):
+        c = basis * c + a[i]
+    return c
+
+def _decode1(c, a, basis):
+    par = 0
+    for i in range(len(a) - 2, -1, -1):
+        a[i] = c % basis
+        par += a[i]
+        c //= basis
+    a[len(a) - 1] = (basis - (par % basis)) % basis
+
+def _encode2(p, elems, lr):
+    p1 = [-1] * len(elems)
+
+    c1 = 0  # positions
+    if lr:
+        j = 0
+        for i in range(len(p)):
+            if p[i] in elems:
+                c1 += cnk(i, j + 1)
+                p1[j] = p[i]
+                j += 1
+    else:
+        j = len(elems) - 1
+        for i in range(len(p)):
+            if p[i] in elems:
+                c1 += cnk(len(p) - 1 - i, j + 1)
+                p1[len(elems) - 1 - j] = p[i]
+                j -= 1
+
+    c2 = 0  # permutation
+    for i in range(len(elems) - 1, 0, -1):
+        cnt = 0
+        while p1[i] != elems[i]:
+            # Left rotate by 1
+            tmp = p1[0]
+            for j in range(i):
+                p1[j] = p1[j+1]
+            p1[i] = tmp
+            cnt += 1
+        c2 = (c2 + cnt) * i
+
+    return math.factorial(len(elems)) * c1 + c2
+
+def _decode2(c, p, elems, lr):
+    elems = list(elems)  # we don't want to mess up the passed array
+    # We want to modify the passed parameter
+    for i in range(len(p)):
+        p[i] = -1
+
+    tmp = math.factorial(len(elems))
+    c1 = c // tmp
+    c2 = c % tmp
+
+    for i in range(1, len(elems)):
+        cnt = c2 % (i + 1)
+        for _ in range(cnt):
+            # Right rotate by 1
+            tmp = elems[i]
+            for j in range(i, 0, -1):
+                elems[j] = elems[j-1]
+            elems[0] = tmp
+        c2 //= (i + 1)
+
+
+    j = len(elems) - 1
+    for i in (range(len(p), -1, -1) if lr else range(len(p))):
+        tmp = cnk(i if lr else (len(p)-1 - i), j + 1)
+        if c1 - tmp >= 0:
+            p[i] = elems[j if lr else (len(elems)-1 - j)]
+            c1 -= tmp
+            j -= 1
+
+    cnt = 0
+    for i in range(len(p)):
+        if p[i] == -1:
+            while cnt in elems:
+                cnt += 1
+            p[i] = cnt
+            cnt += 1
+
+_MAX_CO = 2
+_MAX_EO = 1
+
+_FRBR_EDGES = [FR, FL, BL, BR]
+_URFDLF_CORNERS = [URF, UFL, ULB, UBR, DFR, DLF]
+_URUL_EDGES = [UR, UF, UL]
+_UBDF_EDGES = [UB, DR, DF]
+_URDF_EDGES = _URUL_EDGES + _UBDF_EDGES
+
+_GET = [
+    lambda c: _encode1(c.co, _MAX_CO + 1), # TWIST
+    lambda c: _encode1(c.eo, _MAX_EO + 1), # FLIP
+    lambda c: _encode2(c.ep, _FRBR_EDGES, False), # FRBR
+    lambda c: _encode2(c.cp, _URFDLF_CORNERS, False), # URFDLF
+    lambda c: _encode2(c.ep, _URUL_EDGES, False), # URUL
+    lambda c: _encode2(c.ep, _UBDF_EDGES, False), # UBDF
+    lambda c: _encode2(c.ep, _URDF_EDGES, True) # URDF
+]
+
+_SET = [
+    lambda c, v: _decode1(v, c.co, _MAX_CO + 1), # TWIST
+    lambda c, v: _decode1(v, c.eo, _MAX_EO + 1), # FLIP
+    lambda c, v: _decode2(v, c.ep, _FRBR_EDGES, False), # FRBR
+    lambda c, v: _decode2(v, c.cp, _URFDLF_CORNERS, False), # URFDLF
+    lambda c, v: _decode2(v, c.ep, _URUL_EDGES, False), # URUL
+    lambda c, v: _decode2(v, c.ep, _UBDF_EDGES, False), # UBDF
+    lambda c, v: _decode2(v, c.ep, _URDF_EDGES, True) # URDF
+]
+
+
+def merge_urdf(urul, ubdf):
+    c1 = CubieCube.make_solved()
+    c1.set_coord(URUL, urul)
+    c2 = CubieCube.make_solved()
+    c2.set_coord(UBDF, ubdf)
+
+    for i in range(N_EDGES - len(_FRBR_EDGES)):
+        if c2.ep[i] in _UBDF_EDGES:
+            c1.ep[i] = c2.ep[i]
+
+    return c1.get_coord(URDF)
 
 
 class CubieCube:
@@ -20,206 +197,62 @@ class CubieCube:
         )
 
 
-    MOVES = [
-        # U
-        make(
-            [UBR, URF, UFL, ULB, DFR, DLF, DBL, DRB], [0] * N_CORNERS,
-            [UB, UR, UF, UL, DR, DF, DL, DB, FR, FL, BL, BR], [0] * N_EDGES
-        ),
-        # R
-        make(
-            [DFR, UFL, ULB, URF, DRB, DLF, DBL, UBR], [2, 0, 0, 1, 1, 0, 0, 2],
-            [FR, UF, UL, UB, BR, DF, DL, DB, DR, FL, BL, UR], [0] * N_EDGES
-        ),
-        # F
-        make(
-            [UFL, DLF, ULB, UBR, URF, DFR, DBL, DRB], [1, 2, 0, 0, 2, 1, 0, 0],
-            [UR, FL, UL, UB, DR, FR, DL, DB, UF, DF, BL, BR], [0, 1, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0]
-        ),
-        # D
-        make(
-            [URF, UFL, ULB, UBR, DLF, DBL, DRB, DFR], [0] * N_CORNERS,
-            [UR, UF, UL, UB, DF, DL, DB, DR, FR, FL, BL, BR], [0] * N_EDGES
-        ),
-        # L
-        make(
-            [URF, ULB, DBL, UBR, DFR, UFL, DLF, DRB], [0, 1, 2, 0, 0, 2, 1, 0],
-            [UR, UF, BL, UB, DR, DF, FL, DB, FR, UL, DL, BR], [0] * N_EDGES
-        ),
-        # B
-        make(
-            [URF, UFL, UBR, DRB, DFR, DLF, ULB, DBL], [0, 0, 1, 2, 0, 0, 2, 1],
-            [UR, UF, UL, BR, DR, DF, DL, BL, FR, FL, UB, DB], [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 1]
-        )
-    ]
-
-
-    @static_method
-    def _mul(p1, p2):
-        p3 = [-1] * len(p1)
-        for i in range(len(p1)):
-            p3[i] = p1[p2[i]]
-        return p3
-
-    def mul_corners(self, other):
+    def _mul_corners(self, other):
         self.cp = _mul(self.cp, other.cp)
         self.co = [(self.co[other.cp[i]] + other.co[i]) % 3 for i in range(N_CORNERS)]
 
-    def mul_edges(self, other):
+    def _mul_edges(self, other):
         self.ep = _mul(self.ep, other.ep)
         self.eo = [(self.eo[other.ep[i]] + other.eo[i]) & 1 for i in range(N_EDGES)]
 
-
-    @staticmethod
-    def _encode1(a, basis):
-        c = 0
-        for i in range(len(a) - 1):
-            c = basis*c + a[i]
-        return c
-
-    @staticmethod
-    def _decode1(c, a, basis):
-        par = 0
-        for i in range(len(a) - 2, -1, -1):
-            a[i] = c % basis
-            par += a[i]
-            c //= basis
-        a[len(a)-1] = (basis - (par % basis)) % basis
-
-    @staticmethod
-    def _encode2(p, elems):
-        p1 = [-1] * len(elems)
-        
-        c1 = 0 # positions
-        j = 0
-        for i in range(1, len(a)):
-            if p[i] in elems:
-                c1 += cnk(i, j + 1)
-                p1[j] = p[i]
-                j += 1
-                
-        c2 = 0 # permutation
-        for i in range(len(elems) - 1, 0, -1):
-            cnt = 0
-            while p1[i] != elems[i]:
-                # Left rotate by 1
-                tmp = p1[0]
-                for j in range(1, i + 1):
-                    p1[j-1] = p1[j]
-                p1[i] = tmp
-                cnt += 1
-            c2 = (c2 + cnt) * i
-
-        return math.factorial(len(elems)) * c1 + c2
-
-    @staticmethod
-    def _decode2(c, p, elems):
-        elems = elems.copy() # we don't want to mess up the passed array       
-        # We want to modify the passed parameter        
-        for i in range(len(p)):
-            p[i] = -1
-
-        tmp = math.factorial(len(elems))
-        c1 = c // tmp
-        c2 = c % tmp
-
-        for i in range(1, len(elems)):
-            cnt = c2 % (i + 1)
-            for _ in range(cnt):
-                # Right rotate by 1
-                tmp = elems[i]
-                for j in range(i):
-                    elems[j+1] = elems[j]
-                elems[0] = tmp
-            c2 //= (i + 1)
-
-        j = len(elems) - 1
-        for i in range(len(p) - 1, -1, -1):
-            tmp = cnk(i, j + 1)
-            if c1 - tmp >= 0:
-                p[i] = elems[j]
-                c1 -= tmp
-                j -= 1
-
-        # cnt = 0
-        # for i in range(len(p)):
-        #     if p[i] == 0:
-        #         while cnt in elems:
-        #             cnt += 1
-        #         p[i] = cnt
-        #         cnt += 1
+    def mul(self, mul, other):
+        _MUL[mul](self, other)
 
 
-    FRBR_EDGES = [FR, FL, BL, BR]
-    URFDLF_CORNERS = [URF, UFL, ULB, UBR, DFR, DLF]
-    URUL_EDGES = [UR, UF, UL]
-    UBDF_EDGES = [UB, DR, DF]
-    URDF_EDGES = URUL_EDGES + UBDF_EDGES
+    def get_coord(self, coord):
+        return _GET[coord](self)
 
-    def get_twist(self):
-        return _encode1(self.co, MAX_CO + 1)
+    def set_coord(self, coord, v):
+        return _SET[coord](self, v)
 
-    def set_twist(self, c):
-        _decode1(c, self.co, MAX_CO + 1)
 
-    def get_flip(self):
-        return _encode1(self.eo, MAX_EO + 1)
-
-    def set_flip(self, c):
-        _decode1(c, self.eo, MAX_EO + 1)
-
-    def get_frbr(self):
-        return _encode2(self.ep, FRBR_EDGES)
-
-    def set_frbr(self, c):
-        _decode2(c, self.ep, FRBR_EDGES)
-
-    def get_urfdlf(self):
-        return _encode2(self.cp, URFDLF_CORNERS)
-
-    def set_urfdlf(self, c):
-        _decode2(c, self.cp, URFDLF_CORNERS)
-
-    def get_urul(self):
-        return _encode2(self.ep, URUL_EDGES)
-
-    def set_urul(self, c):
-        _decode2(c, self.ep, URUL_EDGES)
-
-    def get_ubdf(self):
-        return _encode2(self.ep, UBDF_EDGES)
-
-    def set_ubdf(self):
-        return _decode2(c, self.ep, UBDF_EDGES)
-
-    def get_urdf(self):
-        return _encode2(self.ep, URDF_EDGES)
-
-    def set_urdf(self, c):
-        _decode(c, self.ep, URDF_EDGES)
-
-    
-    @staticmethod
-    def merge_urdf(urul, ubdf):
-        c1 = make_solved()
-        c1.set_urul(urul)
-        c2 = make_solved()
-        c2.set_ubdf(ubdf)
-
-        for i in range(N_EDGES - len(FRBR_EDGES)):
-            if c2.ep[i] in UBDF_EDES:
-                c1.ep[i] = c2.ep[i]
-
-        return c1.get_urdf()
-
-    @static_method
     def check(self):
-        pass
+        pass # TODO
+
+
+
+MOVES = [
+    CubieCube.make(
+        [UBR, URF, UFL, ULB, DFR, DLF, DBL, DRB], [0] * N_CORNERS,
+        [UB, UR, UF, UL, DR, DF, DL, DB, FR, FL, BL, BR], [0] * N_EDGES
+    ), # U
+    CubieCube.make(
+        [DFR, UFL, ULB, URF, DRB, DLF, DBL, UBR], [2, 0, 0, 1, 1, 0, 0, 2],
+        [FR, UF, UL, UB, BR, DF, DL, DB, DR, FL, BL, UR], [0] * N_EDGES
+    ), # R
+    CubieCube.make(
+        [UFL, DLF, ULB, UBR, URF, DFR, DBL, DRB], [1, 2, 0, 0, 2, 1, 0, 0],
+        [UR, FL, UL, UB, DR, FR, DL, DB, UF, DF, BL, BR], [0, 1, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0]
+    ), # F
+    CubieCube.make(
+        [URF, UFL, ULB, UBR, DLF, DBL, DRB, DFR], [0] * N_CORNERS,
+        [UR, UF, UL, UB, DF, DL, DB, DR, FR, FL, BL, BR], [0] * N_EDGES
+    ), # D
+    CubieCube.make(
+        [URF, ULB, DBL, UBR, DFR, UFL, DLF, DRB], [0, 1, 2, 0, 0, 2, 1, 0],
+        [UR, UF, BL, UB, DR, DF, FL, DB, FR, UL, DL, BR], [0] * N_EDGES
+    ), # L
+    CubieCube.make(
+        [URF, UFL, UBR, DRB, DFR, DLF, ULB, DBL], [0, 0, 1, 2, 0, 0, 2, 1],
+        [UR, UF, UL, BR, DR, DF, DL, BL, FR, FL, UB, DB], [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 1]
+    ) # B
+]
 
 
 def cnk(n, k):
+    if k > n:
+        return 0
     c = 1
     for i in range(min(k, n - k)):
         c = c * (n-i) / (i+1)
     return c
-
