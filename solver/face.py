@@ -1,4 +1,4 @@
-from cubie import CubieCube, _MAX_CO
+from cubie import CubieCube, _MAX_CO, _MAX_EO
 
 
 N_COLORS = 6
@@ -11,47 +11,41 @@ L = 4
 B = 5
 
 
-_N_PIECES = 9
-_P = {f + str(j): i * 3 + j for i, f in enumerate(['U', 'R', 'F', 'D', 'L', 'B']) for j in range(1, _N_PIECES+1)}
-
-def _corner(p1, p2, p3):
-    return _P[p1], _P[p2], _P[p3]
-
 _CORNLETS = [
-    _corner('U9','R1','F3'), _corner('U7','F1','L3'), _corner('U1','L1','B3'), _corner('U3','B1','R3'),
-    _corner('D3','F9','R7'), _corner('D1','L9','F7'), _corner('D7','B9','L7'), _corner('D9','R9','B7')
-]
-
-def _edge(p1, p2):
-    return _P[p1], _P[p2]
+    (8,9,20), (6,18,38), (0,36,47), (2,45,11), (29,26,15), (27,44,24), (33,53,42), (35,17,51)
+] # U9R1F3, U7F1L3, U1L1B3, U3B1R3, D3F9R7, D1L9F7, D7B9L7, D9R9B7
 
 _EDGELETS = [
-    _edge('U6','R2'), _edge('U8','F2'), _edge('U4','L2'), _edge('U2','B2'), _edge('D6','R8'), _edge('D2','F8'),
-    _edge('D4','L8'), _edge('D8','B8'), _edge('F6','R4'), _edge('F4','L6'), _edge('B6','L4'), _edge('B4','R6')
-]
+    (5,10), (7,19), (3,37), (1,46), (32,16), (28,25), (30,43), (34,52), (23,12), (21,41), (50,39), (48,14)
+] # U6R2, U8F2, U4L2, U2B2, D6R8, D2F8, D4L8, D8B8, F6R4, F4L6, B6L4, B4R6
 
-# URF, UFL, ULB, UBR, DFR, DLF, DBL, DRB
-_CORNERS = [(U,R,F), (U,F,L), (U,L,B), (U,B,R), (D,F,R), (D,L,F), (D,B,L), (D,R,B)]
-# UR, UF, UL, UB, DR, DF, DL, DB, FR, FL, BL, BR
-_EDGES = [(U,R), (U,F), (U,L), (U,B), (D,R), (D,F), (D,L), (D,B), (F,R), (F,L), (B,L), (B,R)]
+def _encode(p, i=0):
+    c = 0
+    for j in range(len(p)):
+        c = N_COLORS * c + p[(i+j) % len(p)]
+    return c
+
+_CORNERS = {
+    _encode(c, j): (i, j) \
+    for i, c in enumerate([(U,R,F), (U,F,L), (U,L,B), (U,B,R), (D,F,R), (D,L,F), (D,B,L), (D,R,B)]) \
+        for j in range(_MAX_CO)
+}
+
+_EDGES = {
+    _encode(e, j): (i, j)
+    for i, e in enumerate([(U,R), (U,F), (U,L), (U,B), (D,R), (D,F), (D,L), (D,B), (F,R), (F,L), (B,L), (B,R)])
+        for j in range(_MAX_EO)
+}
+
+_COL = ['U', 'R', 'F', 'D', 'L', 'B'] # U, R, F, D, L, B
 
 def face_to_cubie(s):
-    f = [-1] * len(s)
+    f = map(lambda c: _COL.index(c), s)
+    cc = CubieCube.make_solved()
 
-    c = CubieCube.make_solved()
+    for i, c in enumerate(_CORNLETS):
+        cc.cp[i], cc.co[i] = _CORNERS[_encode([f[j] for j in c])]
+    for i, e in enumerate(_EDGELETS):
+        cc.ep[i], cc.eo[i] = _EDGES[_encode([f[j] for j in e])]
 
-    for i in range(len(_CORNERS)):
-        ud = 0
-        for ud in range(_MAX_CO):
-            tmp = f[_CORNLETS[i][ud]]
-            if tmp == U or tmp == D:
-                break
-        col1 = f[_CORNLETS[i][(ud+1) % _MAX_CO]]
-        col2 = f[_CORNLETS[i][(ud+2) % _MAX_CO]]
-        for j in range(len(_CORNERS)):
-            if _CORNERS[j][1] == col1 and _CORNERS[j][2] == col2:
-                c.cp[i] = j
-                c.co[i] = ud
-                break
-
-
+    return cc

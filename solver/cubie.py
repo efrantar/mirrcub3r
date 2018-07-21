@@ -220,7 +220,6 @@ class CubieCube:
         pass # TODO
 
 
-
 MOVES = [
     CubieCube.make(
         [UBR, URF, UFL, ULB, DFR, DLF, DBL, DRB], [0] * N_CORNERS,
