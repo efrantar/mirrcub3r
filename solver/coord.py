@@ -54,6 +54,9 @@ def _get_prun(table, i):
 _N_FRBR_1 = 495 # 12 choose 4
 _N_FRBR_2 = 24 # 4!
 
+def phase1_prun_idx(c, frbr):
+    return _N_FRBR_1 * c + frbr / _N_FRBR_2
+
 def _gen_phase1_pruntable(n, coord):
     # Make all bits on per default -> detect empty cells as 0xf
     prun = array('B', [255] * n)
@@ -68,7 +71,7 @@ def _gen_phase1_pruntable(n, coord):
 
         for m in range(_MAX_MOVE_COUNT * N_COLORS):
             # Permutation irrelevant for phase 1
-            j = _N_FRBR_1 * MOVE[coord][c][m] + MOVE[FRBR][frbr * _N_FRBR_2][m] / _N_FRBR_2
+            j = phase1_prun_idx(MOVE[coord][c][m], MOVE[FRBR][frbr * _N_FRBR_2][m])
             if _get_prun(prun, j) == 0x0f:
                 _set_prun(prun, j, _get_prun(prun, i) + 1)
                 _q.append(j)
@@ -83,6 +86,9 @@ FRBR_FLIP_PRUN = _gen_phase1_pruntable(_N_COORDS[FLIP] * _N_FRBR_1 / _N_PER_BYTE
 
 _PHASE_2_MOVES = [0, 1, 2, 4, 7, 9, 10, 11, 13, 16] # U, U2, U', R2, F2, D, D2, D', L2, B2
 
+def phase2_prun_idx(c, frbr, par):
+    return (_N_FRBR_2 * c + frbr) * _N_COORDS[PAR] + par
+
 def _gen_phase2_pruntable(coord):
     prun = array('B', [255] * (_N_FRBR_2 * _N_COORDS[coord] * _N_COORDS[PAR] / _N_PER_BYTE))
 
@@ -96,7 +102,7 @@ def _gen_phase2_pruntable(coord):
         frbr = (i // _N_COORDS[PAR]) % _N_FRBR_2
 
         for m in _PHASE_2_MOVES:
-            j = (_N_FRBR_2 * MOVE[coord][c][m] + MOVE[FRBR][frbr][m]) * _N_COORDS[PAR] + MOVE[PAR][par][m]
+            j = phase2_prun_idx(MOVE[coord][c][m], MOVE[FRBR][frbr][m], MOVE[PAR][par][m])
             if _get_prun(prun, j) == 0x0f:
                 _set_prun(prun, j, _get_prun(prun, i) + 1)
                 _q.append(j)
@@ -107,5 +113,6 @@ def _gen_phase2_pruntable(coord):
 FRBR_URFDLF_PAR_PRUN = _gen_phase2_pruntable(URFDLF)
 FRBR_URDF_PAR_PRUN = _gen_phase2_pruntable(URDF)
 
-URDF_MERG = [merge_urdf(i, j) for i in range(_N_COORDS[URUL]) for j in range(_N_COORDS[UBDF])]
+_N_URUL_UBDF_2 = 336 # 8!/(8-3)!
+URDF_MERG = [array('i', [merge_urdf(i, j) for j in range(_N_URUL_UBDF_2)]) for i in range(_N_URUL_UBDF_2)]
 print('Generated merge table.')

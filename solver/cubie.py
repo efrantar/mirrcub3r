@@ -53,8 +53,8 @@ URDF = 6
 
 def _encode1(a, basis):
     c = 0
-    for i in range(len(a) - 1):
-        c = basis * c + a[i]
+    for i in a[:-1]:
+        c = basis * c + i
     return c
 
 def _decode1(c, a, basis):
@@ -127,13 +127,13 @@ def _decode2(c, p, elems, lr):
             c1 -= tmp
             j -= 1
 
-    cnt = 0
-    for i in range(len(p)):
-        if p[i] == -1:
-            while cnt in elems:
-                cnt += 1
-            p[i] = cnt
-            cnt += 1
+    # cnt = 0
+    # for i in range(len(p)):
+    #    if p[i] == -1:
+    #        while cnt in elems:
+    #            cnt += 1
+    #        p[i] = cnt
+    #        cnt += 1
 
 _MAX_CO = 2
 _MAX_EO = 1
@@ -149,8 +149,8 @@ _GET = [
     lambda c: _encode1(c.eo, _MAX_EO + 1), # FLIP
     lambda c: _encode2(c.ep, _FRBR_EDGES, False), # FRBR
     lambda c: _encode2(c.cp, _URFDLF_CORNERS, False), # URFDLF
-    lambda c: _encode2(c.ep, _URUL_EDGES, False), # URUL
-    lambda c: _encode2(c.ep, _UBDF_EDGES, False), # UBDF
+    lambda c: _encode2(c.ep, _URUL_EDGES, True), # URUL
+    lambda c: _encode2(c.ep, _UBDF_EDGES, True), # UBDF
     lambda c: _encode2(c.ep, _URDF_EDGES, True) # URDF
 ]
 
@@ -159,8 +159,8 @@ _SET = [
     lambda c, v: _decode1(v, c.eo, _MAX_EO + 1), # FLIP
     lambda c, v: _decode2(v, c.ep, _FRBR_EDGES, False), # FRBR
     lambda c, v: _decode2(v, c.cp, _URFDLF_CORNERS, False), # URFDLF
-    lambda c, v: _decode2(v, c.ep, _URUL_EDGES, False), # URUL
-    lambda c, v: _decode2(v, c.ep, _UBDF_EDGES, False), # UBDF
+    lambda c, v: _decode2(v, c.ep, _URUL_EDGES, True), # URUL
+    lambda c, v: _decode2(v, c.ep, _UBDF_EDGES, True), # UBDF
     lambda c, v: _decode2(v, c.ep, _URDF_EDGES, True) # URDF
 ]
 
@@ -173,6 +173,8 @@ def merge_urdf(urul, ubdf):
 
     for i in range(N_EDGES - len(_FRBR_EDGES)):
         if c2.ep[i] in _UBDF_EDGES:
+            if c1.ep[i] != -1:
+                return -1 # collision
             c1.ep[i] = c2.ep[i]
 
     return c1.get_coord(URDF)
