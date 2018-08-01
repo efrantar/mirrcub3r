@@ -5,18 +5,18 @@ from array import *
 from collections import deque
 
 
-_MAX_MOVE_COUNT = 3
+MAX_MOVE_COUNT = 3
 
 def _gen_movetable(n, coord, mul):
-    moves = [array('i', [-1] * _MAX_MOVE_COUNT * N_COLORS) for _ in range(n)]
+    moves = [array('i', [-1] * MAX_MOVE_COUNT * N_COLORS) for _ in range(n)]
 
     c = CubieCube.make_solved()
     for i in range(n):
         c.set_coord(coord, i)
         for face in range(N_COLORS):
-            for cnt in range(_MAX_MOVE_COUNT):
+            for cnt in range(MAX_MOVE_COUNT):
                 c.mul(mul, MOVES[face])
-                moves[i][_MAX_MOVE_COUNT * face + cnt] = c.get_coord(coord)
+                moves[i][MAX_MOVE_COUNT * face + cnt] = c.get_coord(coord)
             c.mul(mul, MOVES[face]) # restore original state
 
     print('Generated move table.')
@@ -36,18 +36,19 @@ _MUL = [CORNERS, EDGES, EDGES, CORNERS, EDGES, EDGES, EDGES] # TWIST, FLIP, FRBR
 # TWIST, FLIP, FRBR, URFDLF, URUL, UBDF, URDF
 MOVE = [_gen_movetable(_N_COORDS[i], i, _MUL[i]) for i in range(len(_N_COORDS))]
 
-PAR = 7
 MOVE.append([
     array('i', [1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1]),
     array('i', [0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0])
 ]) # ..., PAR
 _N_COORDS.append(2) # ..., PAR
 
+N_MOVES = N_COLORS * MAX_MOVE_COUNT
+
 
 def _set_prun(table, i, v):
     table[i>>1] &= (v << 4) if i & 1 else v
 
-def _get_prun(table, i):
+def get_prun(table, i):
     tmp = table[i>>1]
     return ((tmp & 0xf0) >> 4) if i & 1 else tmp & 0x0f
 
@@ -69,11 +70,11 @@ def _gen_phase1_pruntable(n, coord):
         c = i // _N_FRBR_1
         frbr = i % _N_FRBR_1
 
-        for m in range(_MAX_MOVE_COUNT * N_COLORS):
+        for m in range(MAX_MOVE_COUNT * N_COLORS):
             # Permutation irrelevant for phase 1
             j = phase1_prun_idx(MOVE[coord][c][m], MOVE[FRBR][frbr * _N_FRBR_2][m])
-            if _get_prun(prun, j) == 0x0f:
-                _set_prun(prun, j, _get_prun(prun, i) + 1)
+            if get_prun(prun, j) == 0x0f:
+                _set_prun(prun, j, get_prun(prun, i) + 1)
                 _q.append(j)
 
     print('Generated phase 1 pruning table.')
@@ -103,8 +104,8 @@ def _gen_phase2_pruntable(coord):
 
         for m in _PHASE_2_MOVES:
             j = phase2_prun_idx(MOVE[coord][c][m], MOVE[FRBR][frbr][m], MOVE[PAR][par][m])
-            if _get_prun(prun, j) == 0x0f:
-                _set_prun(prun, j, _get_prun(prun, i) + 1)
+            if get_prun(prun, j) == 0x0f:
+                _set_prun(prun, j, get_prun(prun, i) + 1)
                 _q.append(j)
 
     print('Generated phase 2 pruning table.')

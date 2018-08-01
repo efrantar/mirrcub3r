@@ -1,6 +1,6 @@
 from cubie import *
 from coord import *
-from coord import _N_COORDS, _MAX_MOVE_COUNT, _N_FRBR_2, _PHASE_2_MOVES
+from coord import _N_COORDS, MAX_MOVE_COUNT, _N_FRBR_2, _PHASE_2_MOVES
 
 _N_COORD_TYPES = 7
 
@@ -14,7 +14,7 @@ print('OK')
 
 for coord in range(_N_COORD_TYPES - 1): # URDF only valid for phase 2 moves thus omitted for now
     for i in range(_N_COORDS[coord]):
-        for m in range(_MAX_MOVE_COUNT * N_COLORS):
+        for m in range(MAX_MOVE_COUNT * N_COLORS):
             i1 = i
             for _ in range(4):
                 i1 = MOVE[coord][i1][m]

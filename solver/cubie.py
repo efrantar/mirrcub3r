@@ -50,6 +50,7 @@ URFDLF = 3
 URUL = 4
 UBDF = 5
 URDF = 6
+PAR = 7
 
 def _encode1(a, basis):
     c = 0
@@ -127,13 +128,14 @@ def _decode2(c, p, elems, lr):
             c1 -= tmp
             j -= 1
 
-    # cnt = 0
-    # for i in range(len(p)):
-    #    if p[i] == -1:
-    #        while cnt in elems:
-    #            cnt += 1
-    #        p[i] = cnt
-    #        cnt += 1
+def _parity(p):
+    par = 0
+    for i in range(len(p)):
+        for j in range(i):
+            if p[j] > p[i]:
+                par += 1
+    return par & 1
+
 
 _MAX_CO = 2
 _MAX_EO = 1
@@ -151,7 +153,8 @@ _GET = [
     lambda c: _encode2(c.cp, _URFDLF_CORNERS, False), # URFDLF
     lambda c: _encode2(c.ep, _URUL_EDGES, True), # URUL
     lambda c: _encode2(c.ep, _UBDF_EDGES, True), # UBDF
-    lambda c: _encode2(c.ep, _URDF_EDGES, True) # URDF
+    lambda c: _encode2(c.ep, _URDF_EDGES, True), # URDF
+    lambda c: _parity(c.cp) # PAR
 ]
 
 _SET = [
