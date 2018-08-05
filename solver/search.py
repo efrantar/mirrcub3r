@@ -12,7 +12,7 @@ _PHASE2_MOVES = []
 
 _MAX_DEPTH = 50
 _coords = [[-1] * len(_N_COORDS)] * _MAX_DEPTH
-_moves = [-1] * _MAX_DEPTH
+_moves = [-18] * _MAX_DEPTH # make sure that the last entry // MAX_MOVE_COUNT is always -1
 
 def phase1(d, dmax):
     prun = max(
@@ -20,7 +20,7 @@ def phase1(d, dmax):
         get_prun(FRBR_FLIP_PRUN, phase1_prun_idx(_coords[d][FLIP], _coords[d][FRBR]))
     )
 
-    if prun <= d - dmax:
+    if prun > dmax - d:
         return -1
     if prun == 0:
         for i in range(d):
@@ -46,6 +46,8 @@ def phase1(d, dmax):
     return -1
 
 def phase2(d, dmax):
+    print('phase2', d)
+
     prun = max(
         get_prun(FRBR_URFDLF_PAR_PRUN, phase2_prun_idx(_coords[d][URFDLF], _coords[d][FRBR], _coords[d][PAR])),
         get_prun(FRBR_URDF_PAR_PRUN, phase2_prun_idx(_coords[d][URDF], _coords[d][FRBR], _coords[d][PAR]))
@@ -63,20 +65,21 @@ def phase2(d, dmax):
                 return tmp
         return -1
 
-def _move(d, m, cs):
-    for c in cs:
-        _coords[d+1][c] = MOVE[c][_coords[d][c]][m]
-    _moves[d-1] = m
-
-
 def search(s, max):
     c = face_to_cubie(s)
 
     _coords[0] = [c.get_coord(i) for i in range(len(_N_COORDS))]
 
     for i in range(max):
-        if phase1(0, i):
+        if phase1(0, i) != -1:
             print('Solved!')
             return
 
-search('UUUUUULLLURRURRURRFFFFFFFFFRRRDDDDDDLLDLLDLLDBBBBBBBBB', 10)
+def _move(d, m, cs):
+    for c in cs:
+        _coords[d+1][c] = MOVE[c][_coords[d][c]][m]
+    _moves[d] = m
+
+
+search('UUUUUUUUUBBBRRRRRRRRRFFFFFFDDDDDDDDDFFFLLLLLLLLLBBBBBB', 10)
+# search('UUUUUULLLURRURRURRFFFFFFFFFRRRDDDDDDLLDLLDLLDBBBBBBBBB', 10)
