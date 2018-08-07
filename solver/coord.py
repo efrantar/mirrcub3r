@@ -39,7 +39,7 @@ N_MOVES = N_COLORS * MAX_MOVE_COUNT
 
 
 def _set_prun(table, i, v):
-    table[i>>1] &= (v << 4) if i & 1 else v
+    table[i>>1] &= (v << 4) | 0xf if i & 1 else 0xf0 | v
 
 def get_prun(table, i):
     tmp = table[i>>1]
@@ -66,7 +66,7 @@ def _gen_phase1_pruntable(n, coord):
         for m in range(MAX_MOVE_COUNT * N_COLORS):
             # Permutation irrelevant for phase 1
             j = phase1_prun_idx(MOVE[coord][c][m], MOVE[FRBR][frbr * _N_FRBR_2][m])
-            if get_prun(prun, j) == 0x0f:
+            if get_prun(prun, j) == 0xf:
                 _set_prun(prun, j, get_prun(prun, i) + 1)
                 q.append(j)
 
@@ -93,7 +93,7 @@ def _gen_phase2_pruntable(coord):
 
         for m in _PHASE_2_PRUN_MOVES:
             j = phase2_prun_idx(MOVE[coord][c][m], MOVE[FRBR][frbr][m], MOVE[PAR][par][m])
-            if get_prun(prun, j) == 0x0f:
+            if get_prun(prun, j) == 0xf:
                 _set_prun(prun, j, get_prun(prun, i) + 1)
                 q.append(j)
 
@@ -116,6 +116,7 @@ else:
         array('i', [0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0])
     ])  # ..., PAR
 
+    # Number of entries is not even -> + 1
     FRBR_TWIST_PRUN = _gen_phase1_pruntable(_N_COORDS[TWIST] * _N_FRBR_1 / _N_PER_BYTE + 1, TWIST)
     FRBR_FLIP_PRUN = _gen_phase1_pruntable(_N_COORDS[FLIP] * _N_FRBR_1 / _N_PER_BYTE, FLIP)
 
