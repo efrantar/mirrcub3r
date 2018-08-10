@@ -1,18 +1,20 @@
 from face import face_to_cubie
 from coord import *
-from coord import _N_COORDS
+from coord import _N_COORDS, _PHASE2_MOVES
 
 
 _PHASE1_COORDS = [TWIST, FLIP, FRBR]
-_PHASE2_COORDS = [FRBR, URFDLF, URDF]
+_PHASE2_COORDS = [FRBR, URFDLF, URDF, PAR]
 _PHASE12_COORDS1 = [URFDLF, PAR]
 _PHASE12_COORDS2 = [URUL, UBDF]
 
-_PHASE2_MOVES = [0, 4, 7, 9, 13, 16] # U, R2, F2, D, L2, B2
+_PHASE2_DMAX = 10
 
-_MAX_DEPTH = 50
-_coords = [[-1] * len(_N_COORDS)] * _MAX_DEPTH
-_moves = [-18] * _MAX_DEPTH # make sure that the last entry // MAX_MOVE_COUNT is always -1
+_DMAX = 50
+_coords = [[-1] * len(_N_COORDS) for _ in range(_DMAX)]
+_moves = [-MAX_MOVE_COUNT] * _DMAX # make sure that the last entry // MAX_MOVE_COUNT is always -1
+
+COUNT = [0]
 
 def phase1(d, dmax):
     prun = max(
@@ -20,11 +22,11 @@ def phase1(d, dmax):
         get_prun(FRBR_FLIP_PRUN, phase1_prun_idx(_coords[d][FLIP], _coords[d][FRBR]))
     )
 
-    print(d, prun, dmax)
-
     if prun > dmax - d:
         return -1
     if prun == 0:
+        dmax = min(d + _PHASE2_DMAX, _DMAX)
+
         for i in range(d):
             _move(i, _moves[i], _PHASE12_COORDS1)
 
@@ -48,8 +50,6 @@ def phase1(d, dmax):
     return -1
 
 def phase2(d, dmax):
-    print('Phase 2 ...')
-
     prun = max(
         get_prun(FRBR_URFDLF_PAR_PRUN, phase2_prun_idx(_coords[d][URFDLF], _coords[d][FRBR], _coords[d][PAR])),
         get_prun(FRBR_URDF_PAR_PRUN, phase2_prun_idx(_coords[d][URDF], _coords[d][FRBR], _coords[d][PAR]))
@@ -65,14 +65,16 @@ def phase2(d, dmax):
             tmp = phase2(d + 1, dmax)
             if tmp != -1:
                 return tmp
-        return -1
+    return -1
 
 def search(s, max):
     c = face_to_cubie(s)
 
     _coords[0] = [c.get_coord(i) if i != URDF else -1 for i in range(len(_N_COORDS))]
 
-    for i in range(max):
+    global _DMAX
+    _DMAX = max
+    for i in range(max + 1):
         if phase1(0, i) != -1:
             print('Solved!')
             return
@@ -85,4 +87,13 @@ def _move(d, m, cs):
 
 # search('UUUUUUUUUBBBRRRRRRRRRFFFFFFDDDDDDDDDFFFLLLLLLLLLBBBBBB', 21)
 # search('UUUUUULLLURRURRURRFFFFFFFFFRRRDDDDDDLLDLLDLLDBBBBBBBBB', 21)
-search('BLDBURUDBLBBBRRLFURRDDFDFUDRLFRDULLLRUFLLFUFDRFUUBDFBB', 25)
+# search('BLDBURUDBLBBBRRLFURRDDFDFUDRLFRDULLLRUFLLFUFDRFUUBDFBB', 21)
+
+import time
+t = time.time()
+search('BLDBURUDBLBBBRRLFURRDDFDFUDRLFRDULLLRUFLLFUFDRFUUBDFBB', 21)
+search('UDDUUBFUUFRBURBBDBRFLDFRLFDFRLBDFULLBLDFLLFUDRRRDBLUBR', 21)
+search('BDLBUDBRDBBFURFBRLRDLBFFFLRRBDUDUFFDUUUFLRRLDULLDBRFLU', 21)
+search('LBLLUUUBDFRDLRLFFDBURRFUBFRURUFDUFRBDBRFLBUDLFDBDBLRDL', 21)
+search('LLDRUUFDDRBFRRFLFFUBBUFBUFFBLURDULLDBDRFLLBURLDUDBRRBD', 21)
+print(time.time() - t)

@@ -1,6 +1,6 @@
 from cubie import *
 from coord import *
-from coord import _N_COORDS, MAX_MOVE_COUNT, _N_FRBR_2, _PHASE_2_PRUN_MOVES
+from coord import _N_COORDS, MAX_MOVE_COUNT, _N_FRBR_2, _PHASE2_MOVES
 
 _N_COORD_TYPES = 7
 
@@ -23,7 +23,7 @@ for coord in range(_N_COORD_TYPES - 1): # URDF only valid for phase 2 moves thus
 print('OK')
 
 for i in range(_N_FRBR_2):
-    for m in _PHASE_2_PRUN_MOVES:
+    for m in _PHASE2_MOVES:
         if MOVE[FRBR][i][m] >= 24:
             print('Error')
 print('OK')

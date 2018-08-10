@@ -49,7 +49,7 @@ _N_FRBR_1 = 495 # 12 choose 4
 _N_FRBR_2 = 24 # 4!
 
 def phase1_prun_idx(c, frbr):
-    return _N_FRBR_1 * c + frbr / _N_FRBR_2
+    return _N_FRBR_1 * c + frbr // _N_FRBR_2
 
 def _gen_phase1_pruntable(n, coord):
     # Make all bits on per default -> detect empty cells as 0xf
@@ -74,7 +74,7 @@ def _gen_phase1_pruntable(n, coord):
 
 _N_PER_BYTE = 2
 
-_PHASE_2_PRUN_MOVES = [0, 1, 2, 4, 7, 9, 10, 11, 13, 16] # U, U2, U', R2, F2, D, D2, D', L2, B2
+_PHASE2_MOVES = [0, 1, 2, 4, 7, 9, 10, 11, 13, 16] # U, U2, U', R2, F2, D, D2, D', L2, B2
 
 def phase2_prun_idx(c, frbr, par):
     return (_N_FRBR_2 * c + frbr) * _N_COORDS[PAR] + par
@@ -91,7 +91,7 @@ def _gen_phase2_pruntable(coord):
         c = (i // _N_COORDS[PAR]) // _N_FRBR_2
         frbr = (i // _N_COORDS[PAR]) % _N_FRBR_2
 
-        for m in _PHASE_2_PRUN_MOVES:
+        for m in _PHASE2_MOVES:
             j = phase2_prun_idx(MOVE[coord][c][m], MOVE[FRBR][frbr][m], MOVE[PAR][par][m])
             if get_prun(prun, j) == 0xf:
                 _set_prun(prun, j, get_prun(prun, i) + 1)
