@@ -22,7 +22,7 @@ _EDGELETS = [
 def _encode(p, i=0):
     c = 0
     for j in range(len(p)):
-        c = N_COLORS * c + p[(i+j) % len(p)]
+        c = N_COLORS * c + p[(j-i) % len(p)]
     return c
 
 _CORNERS = {

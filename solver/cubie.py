@@ -150,7 +150,7 @@ _GET = [
     lambda c: _encode1(c.co, _MAX_CO + 1), # TWIST
     lambda c: _encode1(c.eo, _MAX_EO + 1), # FLIP
     lambda c: _encode2(c.ep, _FRBR_EDGES, False), # FRBR
-    lambda c: _encode2(c.cp, _URFDLF_CORNERS, False), # URFDLF
+    lambda c: _encode2(c.cp, _URFDLF_CORNERS, True), # URFDLF
     lambda c: _encode2(c.ep, _URUL_EDGES, True), # URUL
     lambda c: _encode2(c.ep, _UBDF_EDGES, True), # UBDF
     lambda c: _encode2(c.ep, _URDF_EDGES, True), # URDF
@@ -161,7 +161,7 @@ _SET = [
     lambda c, v: _decode1(v, c.co, _MAX_CO + 1), # TWIST
     lambda c, v: _decode1(v, c.eo, _MAX_EO + 1), # FLIP
     lambda c, v: _decode2(v, c.ep, _FRBR_EDGES, False), # FRBR
-    lambda c, v: _decode2(v, c.cp, _URFDLF_CORNERS, False), # URFDLF
+    lambda c, v: _decode2(v, c.cp, _URFDLF_CORNERS, True), # URFDLF
     lambda c, v: _decode2(v, c.ep, _URUL_EDGES, True), # URUL
     lambda c, v: _decode2(v, c.ep, _UBDF_EDGES, True), # UBDF
     lambda c, v: _decode2(v, c.ep, _URDF_EDGES, True) # URDF
