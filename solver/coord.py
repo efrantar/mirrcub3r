@@ -129,5 +129,3 @@ else:
         (MOVE, FRBR_TWIST_PRUN, FRBR_FLIP_PRUN, FRBR_URFDLF_PAR_PRUN, FRBR_URDF_PAR_PRUN, URDF_MERG),
         open(_FILE, 'wb')
     )
-
-print('Tables loaded.')

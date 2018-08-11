@@ -197,8 +197,8 @@ class CubieCube:
     @staticmethod
     def make_solved():
         return CubieCube.make(
-            [URF, UFL, ULB, UBR, DFR, DLF, DBL, DRB], [0] * N_CORNERS,
-            [UR, UF, UL, UB, DR, DF, DL, DB, FR, FL, BL, BR], [0] * N_EDGES
+            [i for i in range(N_CORNERS)], [0] * N_CORNERS,
+            [i for i in range(N_EDGES)], [0] * N_EDGES
         )
 
 
@@ -222,7 +222,12 @@ class CubieCube:
 
 
     def check(self):
-        pass # TODO
+        if any(i not in self.cp for i in range(N_CORNERS)) or sum(self.co) % 3 != 0:
+            return False
+        if any(i not in self.ep for i in range(N_EDGES)) or sum(self.eo) & 1 != 0:
+            return False
+        return _parity(self.cp) == _parity(self.ep)
+
 
 
 MOVES = [

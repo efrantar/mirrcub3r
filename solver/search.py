@@ -77,7 +77,7 @@ _MOVE_STR = [c + cnt for c in _COL for cnt in ['', '2', "'"]]
 
 def search(s, max):
     c = face_to_cubie(s)
-    if c is None:
+    if c is None or not c.check():
         return None
 
     _coords[0] = [c.get_coord(i) if i != URDF else -1 for i in range(len(_N_COORDS))]
@@ -92,6 +92,7 @@ def search(s, max):
 
 import time
 t = time.time()
+print(search('UUUUBUUUUBBBRRRRRRRRRFFFFFFDDDDDDDDDFFFLLLLLLLLLBBBBBB', 21))
 print(search('UUUUUUUUUBBBRRRRRRRRRFFFFFFDDDDDDDDDFFFLLLLLLLLLBBBBBB', 21))
 print(search('UUUUUULLLURRURRURRFFFFFFFFFRRRDDDDDDLLDLLDLLDBBBBBBBBB', 21))
 print(search('BLDBURUDBLBBBRRLFURRDDFDFUDRLFRDULLLRUFLLFUFDRFUUBDFBB', 21))
