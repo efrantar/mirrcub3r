@@ -1,4 +1,4 @@
-from cubie import CubieCube, _MAX_CO, _MAX_EO
+from cubie import CubieCube, MAX_CO, MAX_EO
 
 
 N_COLORS = 6
@@ -28,13 +28,13 @@ def _encode(p, i=0):
 _CORNERS = {
     _encode(c, j): (i, j) \
     for i, c in enumerate([(U,R,F), (U,F,L), (U,L,B), (U,B,R), (D,F,R), (D,L,F), (D,B,L), (D,R,B)]) \
-        for j in range(_MAX_CO + 1)
+        for j in range(MAX_CO + 1)
 }
 
 _EDGES = {
     _encode(e, j): (i, j)
     for i, e in enumerate([(U,R), (U,F), (U,L), (U,B), (D,R), (D,F), (D,L), (D,B), (F,R), (F,L), (B,L), (B,R)])
-        for j in range(_MAX_EO + 1)
+        for j in range(MAX_EO + 1)
 }
 
 _COL = ['U', 'R', 'F', 'D', 'L', 'B'] # U, R, F, D, L, B

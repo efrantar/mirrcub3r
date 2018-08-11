@@ -1,5 +1,7 @@
-import math
+import math # only needed for `math.factorial()`
 
+
+# Definitions of corners and edges. The orders matter for the coordinate calculations!
 
 N_CORNERS = 8
 
@@ -28,21 +30,25 @@ BL = 10
 BR = 11
 
 
+# Multiplies permutation `p1` with permutation `p2`
 def _mul(p1, p2):
     p3 = [-1] * len(p1)
     for i in range(len(p1)):
         p3[i] = p1[p2[i]]
     return p3
 
+# Indicators for selecting whether to multiply corners or edges
 CORNERS = 0
 EDGES = 1
 
+# Map of indicators defined above to functions that multiply the corners/edges of `CubieCube`s `c1` and `c2`
 _MUL = [
     lambda c1, c2: c1._mul_corners(c2), # CORNERS
     lambda c1, c2: c1._mul_edges(c2) # EDGES
 ]
 
 
+# Coordinate indicators
 TWIST = 0
 FLIP = 1
 FRBR = 2
@@ -52,12 +58,20 @@ UBDF = 5
 URDF = 6
 PAR = 7
 
+
+# Type 1 coordinates: (used for `TWIST` and `FLIP`)
+# - Edge/corner orientations are encoded as binary/ternary numbers
+# - The last orientation is left out as it can be reconstructed since the sums must be divisible by 2/3
+#   (This saves table space by ensure that there are not empty/invalid entries.)
+
+# Encodes array `a`, up to but not including its last element, as a number in basis `basis`
 def _encode1(a, basis):
     c = 0
     for i in a[:-1]:
         c = basis * c + i
     return c
 
+# Reconstructs `a` from `c` decoding with basis `basis`
 def _decode1(c, a, basis):
     par = 0
     for i in range(len(a) - 2, -1, -1):
@@ -65,6 +79,9 @@ def _decode1(c, a, basis):
         par += a[i]
         c //= basis
     a[len(a) - 1] = (basis - (par % basis)) % basis
+
+# Type 2 coordinates: (used for `FRBR`, `URFDLF`, `URUL`, `UBDF` and `URDF`)
+# - Used for encoding positions as well as orders of certain cubies
 
 def _encode2(p, elems, lr):
     p1 = [-1] * len(elems)
@@ -137,18 +154,21 @@ def _parity(p):
     return par & 1
 
 
-_MAX_CO = 2
-_MAX_EO = 1
+# Maximum values for corner and edge orientation. Defined as public as they are also used in other files.
+MAX_CO = 2
+MAX_EO = 1
 
+# Lists of cubies tracked by their corresponding coordinates
 _FRBR_EDGES = [FR, FL, BL, BR]
 _URFDLF_CORNERS = [URF, UFL, ULB, UBR, DFR, DLF]
 _URUL_EDGES = [UR, UF, UL]
 _UBDF_EDGES = [UB, DR, DF]
 _URDF_EDGES = _URUL_EDGES + _UBDF_EDGES
 
+# Map of coordinate indicators to functions calculating this coordinate for a `CubieCube` `c`
 _GET = [
-    lambda c: _encode1(c.co, _MAX_CO + 1), # TWIST
-    lambda c: _encode1(c.eo, _MAX_EO + 1), # FLIP
+    lambda c: _encode1(c.co, MAX_CO + 1), # TWIST
+    lambda c: _encode1(c.eo, MAX_EO + 1), # FLIP
     lambda c: _encode2(c.ep, _FRBR_EDGES, False), # FRBR
     lambda c: _encode2(c.cp, _URFDLF_CORNERS, True), # URFDLF
     lambda c: _encode2(c.ep, _URUL_EDGES, True), # URUL
@@ -158,8 +178,8 @@ _GET = [
 ]
 
 _SET = [
-    lambda c, v: _decode1(v, c.co, _MAX_CO + 1), # TWIST
-    lambda c, v: _decode1(v, c.eo, _MAX_EO + 1), # FLIP
+    lambda c, v: _decode1(v, c.co, MAX_CO + 1), # TWIST
+    lambda c, v: _decode1(v, c.eo, MAX_EO + 1), # FLIP
     lambda c, v: _decode2(v, c.ep, _FRBR_EDGES, False), # FRBR
     lambda c, v: _decode2(v, c.cp, _URFDLF_CORNERS, True), # URFDLF
     lambda c, v: _decode2(v, c.ep, _URUL_EDGES, True), # URUL
