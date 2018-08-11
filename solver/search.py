@@ -1,4 +1,4 @@
-from face import face_to_cubie
+from face import face_to_cubie, _COL
 from coord import *
 from coord import _N_COORDS, _PHASE2_MOVES
 
@@ -67,33 +67,37 @@ def phase2(d, dmax):
                 return tmp
     return -1
 
-def search(s, max):
-    c = face_to_cubie(s)
-
-    _coords[0] = [c.get_coord(i) if i != URDF else -1 for i in range(len(_N_COORDS))]
-
-    global _DMAX
-    _DMAX = max
-    for i in range(max + 1):
-        if phase1(0, i) != -1:
-            print('Solved!')
-            return
-
 def _move(d, m, cs):
     for c in cs:
         _coords[d+1][c] = MOVE[c][_coords[d][c]][m]
     _moves[d] = m
 
 
-# search('UUUUUUUUUBBBRRRRRRRRRFFFFFFDDDDDDDDDFFFLLLLLLLLLBBBBBB', 21)
-# search('UUUUUULLLURRURRURRFFFFFFFFFRRRDDDDDDLLDLLDLLDBBBBBBBBB', 21)
-# search('BLDBURUDBLBBBRRLFURRDDFDFUDRLFRDULLLRUFLLFUFDRFUUBDFBB', 21)
+_MOVE_STR = [c + cnt for c in _COL for cnt in ['', '2', "'"]]
+
+def search(s, max):
+    c = face_to_cubie(s)
+    if c is None:
+        return None
+
+    _coords[0] = [c.get_coord(i) if i != URDF else -1 for i in range(len(_N_COORDS))]
+
+    global _DMAX
+    _DMAX = max
+    for i in range(max + 1):
+        sol = phase1(0, i)
+        if sol != -1:
+            return ' '.join(map(lambda m: _MOVE_STR[m], _moves[:sol]))
+
 
 import time
 t = time.time()
-search('BLDBURUDBLBBBRRLFURRDDFDFUDRLFRDULLLRUFLLFUFDRFUUBDFBB', 21)
-search('UDDUUBFUUFRBURBBDBRFLDFRLFDFRLBDFULLBLDFLLFUDRRRDBLUBR', 21)
-search('BDLBUDBRDBBFURFBRLRDLBFFFLRRBDUDUFFDUUUFLRRLDULLDBRFLU', 21)
-search('LBLLUUUBDFRDLRLFFDBURRFUBFRURUFDUFRBDBRFLBUDLFDBDBLRDL', 21)
-search('LLDRUUFDDRBFRRFLFFUBBUFBUFFBLURDULLDBDRFLLBURLDUDBRRBD', 21)
+print(search('UUUUUUUUUBBBRRRRRRRRRFFFFFFDDDDDDDDDFFFLLLLLLLLLBBBBBB', 21))
+print(search('UUUUUULLLURRURRURRFFFFFFFFFRRRDDDDDDLLDLLDLLDBBBBBBBBB', 21))
+print(search('BLDBURUDBLBBBRRLFURRDDFDFUDRLFRDULLLRUFLLFUFDRFUUBDFBB', 21))
+print(search('BLDBURUDBLBBBRRLFURRDDFDFUDRLFRDULLLRUFLLFUFDRFUUBDFBB', 21))
+print(search('UDDUUBFUUFRBURBBDBRFLDFRLFDFRLBDFULLBLDFLLFUDRRRDBLUBR', 21))
+print(search('BDLBUDBRDBBFURFBRLRDLBFFFLRRBDUDUFFDUUUFLRRLDULLDBRFLU', 21))
+print(search('LBLLUUUBDFRDLRLFFDBURRFUBFRURUFDUFRBDBRFLBUDLFDBDBLRDL', 21))
+print(search('LLDRUUFDDRBFRRFLFFUBBUFBUFFBLURDULLDBDRFLLBURLDUDBRRBD', 21))
 print(time.time() - t)

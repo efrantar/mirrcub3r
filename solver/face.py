@@ -40,12 +40,15 @@ _EDGES = {
 _COL = ['U', 'R', 'F', 'D', 'L', 'B'] # U, R, F, D, L, B
 
 def face_to_cubie(s):
-    f = map(lambda c: _COL.index(c), s)
-    cc = CubieCube.make_solved()
+    try:
+        f = map(lambda c: _COL.index(c), s)
+        cc = CubieCube.make_solved()
 
-    for i, c in enumerate(_CORNLETS):
-        cc.cp[i], cc.co[i] = _CORNERS[_encode([f[j] for j in c])]
-    for i, e in enumerate(_EDGELETS):
-        cc.ep[i], cc.eo[i] = _EDGES[_encode([f[j] for j in e])]
+        for i, c in enumerate(_CORNLETS):
+            cc.cp[i], cc.co[i] = _CORNERS[_encode([f[j] for j in c])]
+        for i, e in enumerate(_EDGELETS):
+            cc.ep[i], cc.eo[i] = _EDGES[_encode([f[j] for j in e])]
 
-    return cc
+        return cc
+    except:
+        pass
