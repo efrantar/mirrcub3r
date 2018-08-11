@@ -8,6 +8,7 @@ _PHASE2_COORDS = [FRBR, URFDLF, URDF, PAR]
 _PHASE12_COORDS1 = [URFDLF, PAR]
 _PHASE12_COORDS2 = [URUL, UBDF]
 
+_PHASE2_DMAX_MIN = 5
 _PHASE2_DMAX = 10
 
 _DMAX = 50
@@ -25,7 +26,8 @@ def phase1(d, dmax):
     if prun > dmax - d:
         return -1
     if prun == 0:
-        dmax = min(d + _PHASE2_DMAX, _DMAX)
+        if dmax > _PHASE2_DMAX_MIN:
+            dmax = min(d + _PHASE2_DMAX, _DMAX)
 
         for i in range(d):
             _move(i, _moves[i], _PHASE12_COORDS1)
@@ -39,6 +41,12 @@ def phase1(d, dmax):
             _move(i, _moves[i], _PHASE12_COORDS2)
         _coords[d][URDF] = URDF_MERG[_coords[d][URUL]][_coords[d][UBDF]]
 
+        if dmax <= _PHASE2_DMAX_MIN:
+            for i in range(d, dmax + 1):
+                tmp = phase2(d, dmax + 1)
+                if tmp != -1:
+                    return tmp
+            return -1
         return phase2(d, dmax)
 
     for m in range(N_MOVES):
@@ -92,10 +100,8 @@ def search(s, max):
 
 import time
 t = time.time()
-print(search('UUUUBUUUUBBBRRRRRRRRRFFFFFFDDDDDDDDDFFFLLLLLLLLLBBBBBB', 21))
 print(search('UUUUUUUUUBBBRRRRRRRRRFFFFFFDDDDDDDDDFFFLLLLLLLLLBBBBBB', 21))
 print(search('UUUUUULLLURRURRURRFFFFFFFFFRRRDDDDDDLLDLLDLLDBBBBBBBBB', 21))
-print(search('BLDBURUDBLBBBRRLFURRDDFDFUDRLFRDULLLRUFLLFUFDRFUUBDFBB', 21))
 print(search('BLDBURUDBLBBBRRLFURRDDFDFUDRLFRDULLLRUFLLFUFDRFUUBDFBB', 21))
 print(search('UDDUUBFUUFRBURBBDBRFLDFRLFDFRLBDFULLBLDFLLFUDRRRDBLUBR', 21))
 print(search('BDLBUDBRDBBFURFBRLRDLBFFFLRRBDUDUFFDUUUFLRRLDULLDBRFLU', 21))
