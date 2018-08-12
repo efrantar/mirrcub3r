@@ -1,4 +1,6 @@
-import math # only needed for `math.factorial()`
+# This file implements the cubie level of the twophase solver.
+# It defines constants for the cubies, the basic cubie level cube moves and the coordinates. It also contains a class
+# `CubieCube` with methods for performing cubie moves and calculating as well as reconstructing coordinates.
 
 
 # Definitions of corners and edges. The orders matter for the coordinate calculations.
@@ -62,7 +64,7 @@ PAR = 7
 # TYPE 1 COORDINATES. Used for `TWIST` and `FLIP`.
 # The last parameter element is omitted from the encoding to avoid empty/invalid table entries.
 
-# Encodes array `a`, excluding its last element, as a number in basis `basis`.
+# Encodes array `a` as a type 1 coordinate using basis `basis`.
 def _encode1(a, basis):
     c = 0
     for i in a[:-1]: # don't encode last element
@@ -86,6 +88,7 @@ def _decode1(c, a, basis):
 # is 0 since the edges occupy all the rightmost entries. As a direct consequence the edges considered by `URDF` can
 # also never be in those positions. This means `l0=False` for `FRBR` and `l0=True` for `URDF`.
 
+# Encodes perumtation `p` as a type 2 coordinate considering the elements in `elems` and the counting given by `l0`.
 def _encode2(p, elems, l0):
     p1 = [-1] * len(elems) # the order of `elems` in `p` is saved here to the compute the permutation coordinate
 
@@ -95,23 +98,23 @@ def _encode2(p, elems, l0):
         j = 0 # index into `p1`
         for i in range(len(p)):
             if p[i] in elems:
-                c1 += cnk(i, j + 1)
+                c1 += CNK[i][j+1]
                 p1[j] = p[i]
                 j += 1
     else:
         j = len(elems) - 1
         for i in range(len(p)):
             if p[i] in elems:
-                c1 += cnk(len(p) - 1 - i, j + 1)
+                c1 += CNK[len(p) - 1 - i][j + 1]
                 p1[len(elems) - 1 - j] = p[i]
                 j -= 1
 
     # Calculate the location coordinate `c2`.
     c2 = 0
-    for i in range(len(elems) - 1, 0, -1):
+    for i in range(len(elems) - 1, 0, -1): # we can skip 0 as `p1` is already properly sorted at that point
         cnt = 0 # number of rotations necessary so that `p1[i] = elems[i]`
         while p1[i] != elems[i]:
-            # Left rotate by 1.
+            # Left rotate the first `i` elements in `p` by 1.
             tmp = p1[0]
             for j in range(i):
                 p1[j] = p1[j+1]
@@ -119,23 +122,23 @@ def _encode2(p, elems, l0):
             cnt += 1
         c2 = (c2 + cnt) * i
 
-    return math.factorial(len(elems)) * c1 + c2 # finally merge both coordinates
+    return FAC[len(elems)] * c1 + c2 # finally merge both coordinates
 
+# Reconstructs `p` from type 2 coordinate `c` considering the elements in `elems` and the counting given by `l0`.
 def _decode2(c, p, elems, l0):
     elems = list(elems)  # we don't want to mess up `elems` as there will be passed global constants
     # However, we do want to modify the passed `p`.
     for i in range(len(p)):
         p[i] = -1
 
-    tmp = math.factorial(len(elems))
-    c1 = c // tmp
-    c2 = c % tmp
+    c1 = c // FAC[len(elems)]
+    c2 = c % FAC[len(elems)]
 
     # Reconstruct permutation.
-    for i in range(1, len(elems)):
-        cnt = c2 % (i + 1)
+    for i in range(1, len(elems)): # we can skip position 0 as the permutation is already reconstructed at that point
+        cnt = c2 % (i + 1) # number of rotations to do to reconstruct cubie `i` of the permutation
         for _ in range(cnt):
-            # Right rotate by 1
+            # Right rotate the first `i` elements in `p` by 1.
             tmp = elems[i]
             for j in range(i, 0, -1):
                 elems[j] = elems[j-1]
@@ -145,12 +148,14 @@ def _decode2(c, p, elems, l0):
     # Reconstruct positions.
     j = len(elems) - 1
     for i in (range(len(p), -1, -1) if l0 else range(len(p))):
-        tmp = cnk(i if l0 else (len(p) - 1 - i), j + 1)
+        tmp = CNK[i if l0 else (len(p) - 1 - i)][j + 1] # just saved so that it does not need to be recalculated
         if c1 - tmp >= 0:
             p[i] = elems[j if l0 else (len(elems) - 1 - j)]
             c1 -= tmp
             j -= 1
 
+
+# Computes the parity of permutation `p`.
 def _parity(p):
     par = 0
     for i in range(len(p)):
@@ -164,14 +169,15 @@ def _parity(p):
 MAX_CO = 2
 MAX_EO = 1
 
-# Lists of cubies tracked by their corresponding coordinates
+# Lists of cubies tracked by their corresponding coordinates.
 _FRBR_EDGES = [FR, FL, BL, BR]
 _URFDLF_CORNERS = [URF, UFL, ULB, UBR, DFR, DLF]
 _URUL_EDGES = [UR, UF, UL]
 _UBDF_EDGES = [UB, DR, DF]
 _URDF_EDGES = _URUL_EDGES + _UBDF_EDGES
 
-# Map of coordinate indicators to functions calculating this coordinate for a `CubieCube` `c`
+# Map of coordinate indicators to functions calculating this coordinate for a `CubieCube` `c`.
+# Note that `l0` does not matter for `URFDLF`, `URUL` and `UBDF` and is chose to use the simpler version.
 _GET = [
     lambda c: _encode1(c.co, MAX_CO + 1), # TWIST
     lambda c: _encode1(c.eo, MAX_EO + 1), # FLIP
@@ -183,6 +189,7 @@ _GET = [
     lambda c: _parity(c.cp) # PAR
 ]
 
+# Map of coordinate indicators to functions calculating this coordinate for a `CubieCube` `c`
 _SET = [
     lambda c, v: _decode1(v, c.co, MAX_CO + 1), # TWIST
     lambda c, v: _decode1(v, c.eo, MAX_EO + 1), # FLIP
@@ -191,26 +198,30 @@ _SET = [
     lambda c, v: _decode2(v, c.ep, _URUL_EDGES, True), # URUL
     lambda c, v: _decode2(v, c.ep, _UBDF_EDGES, True), # UBDF
     lambda c, v: _decode2(v, c.ep, _URDF_EDGES, True) # URDF
+    # we don't need a setter for `par` as its move-table is hardcoded
 ]
 
 
+# Merges an `URUL` coordinate and a `UBDF` coordinate to a `URDF` coordinate.
 def merge_urdf(urul, ubdf):
     c1 = CubieCube.make_solved()
     c1.set_coord(URUL, urul)
     c2 = CubieCube.make_solved()
     c2.set_coord(UBDF, ubdf)
 
-    for i in range(N_EDGES - len(_FRBR_EDGES)):
+    for i in range(N_EDGES - len(_FRBR_EDGES)): # this is only called in phase two where the last 4 edges are fixed
         if c2.ep[i] in _UBDF_EDGES:
-            if c1.ep[i] != -1:
-                return -1 # collision
+            if c1.ep[i] != -1: # collision
+                return -1 # return -1 as otherwise `get_coord(URDF)` might run into an infinite loop
             c1.ep[i] = c2.ep[i]
 
     return c1.get_coord(URDF)
 
 
+# Represents a cube at cubie level. Provides methods for making cubie moves as well as getting and setting coordinates.
 class CubieCube:
 
+    # Returns a new `CubieCubie` with the given cubie perumtations and orientations.
     @staticmethod
     def make(cp, co, ep, eo):
         c = CubieCube()
@@ -220,6 +231,7 @@ class CubieCube:
         c.eo = eo # edge orientations
         return c
 
+    # Returns a `CubieCube` in solved state.
     @staticmethod
     def make_solved():
         return CubieCube.make(
@@ -227,35 +239,40 @@ class CubieCube:
             [i for i in range(N_EDGES)], [0] * N_EDGES
         )
 
-
+    # Multiplies the corners with the `CubieCube` `other`.
     def _mul_corners(self, other):
         self.cp = _mul(self.cp, other.cp)
         self.co = [(self.co[other.cp[i]] + other.co[i]) % 3 for i in range(N_CORNERS)]
 
+    # Multiplies the edges with the `CubieCube` `other`.
     def _mul_edges(self, other):
         self.ep = _mul(self.ep, other.ep)
         self.eo = [(self.eo[other.ep[i]] + other.eo[i]) & 1 for i in range(N_EDGES)]
 
+    # Multiplies the corners/edges as indicated by `mul` with the `CubieCube` `other`.
     def mul(self, mul, other):
         _MUL[mul](self, other)
 
 
+    # Computes the coordinate `coord`.
     def get_coord(self, coord):
         return _GET[coord](self)
 
+    # Reconstructs the cube from the `coord` coordinate with value `v`
     def set_coord(self, coord, v):
         return _SET[coord](self, v)
 
-
+    # Checks the cube for solvability.
     def check(self):
+        # Check if all corners/edges are present and their orientations have a valid sum.
         if any(i not in self.cp for i in range(N_CORNERS)) or sum(self.co) % 3 != 0:
             return False
         if any(i not in self.ep for i in range(N_EDGES)) or sum(self.eo) & 1 != 0:
             return False
-        return _parity(self.cp) == _parity(self.ep)
+        return _parity(self.cp) == _parity(self.ep) # edge and corner parities must match
 
 
-
+# Definition of cube moves in form of `CubieCube`s.
 MOVES = [
     CubieCube.make(
         [UBR, URF, UFL, ULB, DFR, DLF, DBL, DRB], [0] * N_CORNERS,
@@ -284,10 +301,15 @@ MOVES = [
 ]
 
 
-def cnk(n, k):
-    if k > n:
-        return 0
-    c = 1
-    for i in range(min(k, n - k)):
-        c = c * (n-i) / (i+1)
-    return c
+# Precompute factorials.  We compute them up to `N_EDGES` just to be safe.
+FAC = [1]
+for i in range(N_EDGES):
+    FAC.append(FAC[i] * (i+1))
+
+# Precompute binomials. `N_EDGES` is again a safe maximum.
+# Note that this is in general not a good way to compute binomials, but for small numbers it is the easiest.
+CNK = [
+    # Returning 0 if `k > n` is critical for properly handling type 2 coordinates.
+    [FAC[n] / (FAC[k] * FAC[n-k]) if k <= n else 0 for k in range(N_EDGES + 1)] \
+        for n in range(N_EDGES + 1)
+]
