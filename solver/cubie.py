@@ -1,7 +1,7 @@
 import math # only needed for `math.factorial()`
 
 
-# Definitions of corners and edges. The orders matter for the coordinate calculations!
+# Definitions of corners and edges. The orders matter for the coordinate calculations.
 
 N_CORNERS = 8
 
@@ -30,25 +30,25 @@ BL = 10
 BR = 11
 
 
-# Multiplies permutation `p1` with permutation `p2`
+# Multiplies permutation `p1` with permutation `p2`.
 def _mul(p1, p2):
     p3 = [-1] * len(p1)
     for i in range(len(p1)):
         p3[i] = p1[p2[i]]
     return p3
 
-# Indicators for selecting whether to multiply corners or edges
+# Indicators for selecting whether to multiply corners or edges.
 CORNERS = 0
 EDGES = 1
 
-# Map of indicators defined above to functions that multiply the corners/edges of `CubieCube`s `c1` and `c2`
+# Map of indicators defined above to functions that multiply the corners/edges of `CubieCube`s `c1` and `c2`.
 _MUL = [
     lambda c1, c2: c1._mul_corners(c2), # CORNERS
     lambda c1, c2: c1._mul_edges(c2) # EDGES
 ]
 
 
-# Coordinate indicators
+# Coordinate indicators.
 TWIST = 0
 FLIP = 1
 FRBR = 2
@@ -59,36 +59,40 @@ URDF = 6
 PAR = 7
 
 
-# Type 1 coordinates: (used for `TWIST` and `FLIP`)
-# - Edge/corner orientations are encoded as binary/ternary numbers
-# - The last orientation is left out as it can be reconstructed since the sums must be divisible by 2/3
-#   (This saves table space by ensure that there are not empty/invalid entries.)
+# TYPE 1 COORDINATES. Used for `TWIST` and `FLIP`.
+# The last parameter element is omitted from the encoding to avoid empty/invalid table entries.
 
-# Encodes array `a`, up to but not including its last element, as a number in basis `basis`
+# Encodes array `a`, excluding its last element, as a number in basis `basis`.
 def _encode1(a, basis):
     c = 0
-    for i in a[:-1]:
+    for i in a[:-1]: # don't encode last element
         c = basis * c + i
     return c
 
-# Reconstructs `a` from `c` decoding with basis `basis`
+# Reconstructs `a` from type 1 coordinate `c` using basis `basis`.
 def _decode1(c, a, basis):
     par = 0
-    for i in range(len(a) - 2, -1, -1):
+    for i in range(len(a) - 2, -1, -1): # skip last element
         a[i] = c % basis
         par += a[i]
         c //= basis
-    a[len(a) - 1] = (basis - (par % basis)) % basis
+    a[len(a) - 1] = (basis - (par % basis)) % basis # reconstruct last element (ignored by loop) from `par`
 
-# Type 2 coordinates: (used for `FRBR`, `URFDLF`, `URUL`, `UBDF` and `URDF`)
-# - Used for encoding positions as well as orders of certain cubies
+# TYPE 2 COORDINATES. Used for `FRBR`, `URFDLF`, `URUL`, `UBDF` and `URDF`.
 
-def _encode2(p, elems, lr):
-    p1 = [-1] * len(elems)
+# The parameter `l0` specifies which configuration of cubies maps to an position coordinate of 0. If `l0=True`, then
+# 0 orientation means that all cubies in `elems` occupy the `len(p)` leftmost spots of `p`, for `l0=False` it are the
+# rightmost. This is extremly important to save table space, as in phase 2 the position part of the `FRBR` coordinate
+# is 0 since the edges occupy all the rightmost entries. As a direct consequence the edges considered by `URDF` can
+# also never be in those positions. This means `l0=False` for `FRBR` and `l0=True` for `URDF`.
 
-    c1 = 0  # positions
-    if lr:
-        j = 0
+def _encode2(p, elems, l0):
+    p1 = [-1] * len(elems) # the order of `elems` in `p` is saved here to the compute the permutation coordinate
+
+    # Calculate the position coordinate `c1`.
+    c1 = 0
+    if l0:
+        j = 0 # index into `p1`
         for i in range(len(p)):
             if p[i] in elems:
                 c1 += cnk(i, j + 1)
@@ -102,11 +106,12 @@ def _encode2(p, elems, lr):
                 p1[len(elems) - 1 - j] = p[i]
                 j -= 1
 
-    c2 = 0  # permutation
+    # Calculate the location coordinate `c2`.
+    c2 = 0
     for i in range(len(elems) - 1, 0, -1):
-        cnt = 0
+        cnt = 0 # number of rotations necessary so that `p1[i] = elems[i]`
         while p1[i] != elems[i]:
-            # Left rotate by 1
+            # Left rotate by 1.
             tmp = p1[0]
             for j in range(i):
                 p1[j] = p1[j+1]
@@ -114,11 +119,11 @@ def _encode2(p, elems, lr):
             cnt += 1
         c2 = (c2 + cnt) * i
 
-    return math.factorial(len(elems)) * c1 + c2
+    return math.factorial(len(elems)) * c1 + c2 # finally merge both coordinates
 
-def _decode2(c, p, elems, lr):
-    elems = list(elems)  # we don't want to mess up the passed array
-    # We want to modify the passed parameter
+def _decode2(c, p, elems, l0):
+    elems = list(elems)  # we don't want to mess up `elems` as there will be passed global constants
+    # However, we do want to modify the passed `p`.
     for i in range(len(p)):
         p[i] = -1
 
@@ -126,6 +131,7 @@ def _decode2(c, p, elems, lr):
     c1 = c // tmp
     c2 = c % tmp
 
+    # Reconstruct permutation.
     for i in range(1, len(elems)):
         cnt = c2 % (i + 1)
         for _ in range(cnt):
@@ -136,12 +142,12 @@ def _decode2(c, p, elems, lr):
             elems[0] = tmp
         c2 //= (i + 1)
 
-
+    # Reconstruct positions.
     j = len(elems) - 1
-    for i in (range(len(p), -1, -1) if lr else range(len(p))):
-        tmp = cnk(i if lr else (len(p)-1 - i), j + 1)
+    for i in (range(len(p), -1, -1) if l0 else range(len(p))):
+        tmp = cnk(i if l0 else (len(p) - 1 - i), j + 1)
         if c1 - tmp >= 0:
-            p[i] = elems[j if lr else (len(elems)-1 - j)]
+            p[i] = elems[j if l0 else (len(elems) - 1 - j)]
             c1 -= tmp
             j -= 1
 
