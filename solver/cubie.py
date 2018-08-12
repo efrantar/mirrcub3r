@@ -1,4 +1,4 @@
-# This file implements the cubie level of the twophase solver.
+# This file implements the cubie level of the two-phase algorithm.
 # It defines constants for the cubies, the basic cubie level cube moves and the coordinates. It also contains a class
 # `CubieCube` with methods for performing cubie moves and calculating as well as reconstructing coordinates.
 
@@ -301,13 +301,13 @@ MOVES = [
 ]
 
 
-# Precompute factorials.  We compute them up to `N_EDGES` just to be safe.
+# Precompute factorials. We compute them up to `N_EDGES` just to be safe.
 FAC = [1]
 for i in range(N_EDGES):
     FAC.append(FAC[i] * (i+1))
 
 # Precompute binomials. `N_EDGES` is again a safe maximum.
-# Note that this is in general not a good way to compute binomials, but for small numbers it is the easiest.
+# Note that this is in general not a good way to compute binomials, but for small numbers it good enough.
 CNK = [
     # Returning 0 if `k > n` is critical for properly handling type 2 coordinates.
     [FAC[n] / (FAC[k] * FAC[n-k]) if k <= n else 0 for k in range(N_EDGES + 1)] \
