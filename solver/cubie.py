@@ -94,7 +94,7 @@ def _encode2(p, elems, l0):
 
     # Calculate the position coordinate `c1`.
     c1 = 0
-    if l0:
+    if l0: # I feel it is cleaner to do it with two separate loops instead of an if on pretty much every line
         j = 0 # index into `p1`
         for i in range(len(p)):
             if p[i] in elems:
@@ -145,7 +145,7 @@ def _decode2(c, p, elems, l0):
             elems[0] = tmp
         c2 //= (i + 1)
 
-    # Reconstruct positions.
+    # Reconstruct positions. Only the cubies in `elems` matter, everything else is simply left -1.
     j = len(elems) - 1
     for i in (range(len(p), -1, -1) if l0 else range(len(p))):
         tmp = CNK[i if l0 else (len(p) - 1 - i)][j + 1] # just saved so that it does not need to be recalculated
@@ -169,23 +169,23 @@ def _parity(p):
 MAX_CO = 2
 MAX_EO = 1
 
-# Lists of cubies tracked by their corresponding coordinates.
-_FRBR_EDGES = [FR, FL, BL, BR]
-_URFDLF_CORNERS = [URF, UFL, ULB, UBR, DFR, DLF]
-_URUL_EDGES = [UR, UF, UL]
-_UBDF_EDGES = [UB, DR, DF]
-_URDF_EDGES = _URUL_EDGES + _UBDF_EDGES
+# Lists of cubies tracked by their corresponding coordinates. Public as they are needed in "coord.py".
+FRBR_EDGES = [FR, FL, BL, BR]
+URFDLF_CORNERS = [URF, UFL, ULB, UBR, DFR, DLF]
+URUL_EDGES = [UR, UF, UL]
+UBDF_EDGES = [UB, DR, DF]
+URDF_EDGES = URUL_EDGES + UBDF_EDGES
 
 # Map of coordinate indicators to functions calculating this coordinate for a `CubieCube` `c`.
 # Note that `l0` does not matter for `URFDLF`, `URUL` and `UBDF` and is chose to use the simpler version.
 _GET = [
     lambda c: _encode1(c.co, MAX_CO + 1), # TWIST
     lambda c: _encode1(c.eo, MAX_EO + 1), # FLIP
-    lambda c: _encode2(c.ep, _FRBR_EDGES, False), # FRBR
-    lambda c: _encode2(c.cp, _URFDLF_CORNERS, True), # URFDLF
-    lambda c: _encode2(c.ep, _URUL_EDGES, True), # URUL
-    lambda c: _encode2(c.ep, _UBDF_EDGES, True), # UBDF
-    lambda c: _encode2(c.ep, _URDF_EDGES, True), # URDF
+    lambda c: _encode2(c.ep, FRBR_EDGES, False), # FRBR
+    lambda c: _encode2(c.cp, URFDLF_CORNERS, True), # URFDLF
+    lambda c: _encode2(c.ep, URUL_EDGES, True), # URUL
+    lambda c: _encode2(c.ep, UBDF_EDGES, True), # UBDF
+    lambda c: _encode2(c.ep, URDF_EDGES, True), # URDF
     lambda c: _parity(c.cp) # PAR
 ]
 
@@ -193,11 +193,11 @@ _GET = [
 _SET = [
     lambda c, v: _decode1(v, c.co, MAX_CO + 1), # TWIST
     lambda c, v: _decode1(v, c.eo, MAX_EO + 1), # FLIP
-    lambda c, v: _decode2(v, c.ep, _FRBR_EDGES, False), # FRBR
-    lambda c, v: _decode2(v, c.cp, _URFDLF_CORNERS, True), # URFDLF
-    lambda c, v: _decode2(v, c.ep, _URUL_EDGES, True), # URUL
-    lambda c, v: _decode2(v, c.ep, _UBDF_EDGES, True), # UBDF
-    lambda c, v: _decode2(v, c.ep, _URDF_EDGES, True) # URDF
+    lambda c, v: _decode2(v, c.ep, FRBR_EDGES, False), # FRBR
+    lambda c, v: _decode2(v, c.cp, URFDLF_CORNERS, True), # URFDLF
+    lambda c, v: _decode2(v, c.ep, URUL_EDGES, True), # URUL
+    lambda c, v: _decode2(v, c.ep, UBDF_EDGES, True), # UBDF
+    lambda c, v: _decode2(v, c.ep, URDF_EDGES, True) # URDF
     # we don't need a setter for `par` as its move-table is hardcoded
 ]
 
@@ -209,8 +209,8 @@ def merge_urdf(urul, ubdf):
     c2 = CubieCube.make_solved()
     c2.set_coord(UBDF, ubdf)
 
-    for i in range(N_EDGES - len(_FRBR_EDGES)): # this is only called in phase two where the last 4 edges are fixed
-        if c2.ep[i] in _UBDF_EDGES:
+    for i in range(N_EDGES - len(FRBR_EDGES)): # this is only called in phase two where the last 4 edges are fixed
+        if c2.ep[i] in UBDF_EDGES:
             if c1.ep[i] != -1: # collision
                 return -1 # return -1 as otherwise `get_coord(URDF)` might run into an infinite loop
             c1.ep[i] = c2.ep[i]
@@ -301,12 +301,12 @@ MOVES = [
 ]
 
 
-# Precompute factorials. We compute them up to `N_EDGES` just to be safe.
+# Precompute factorials. `N_EDGES` is the maximum we need.
 FAC = [1]
 for i in range(N_EDGES):
     FAC.append(FAC[i] * (i+1))
 
-# Precompute binomials. `N_EDGES` is again a safe maximum.
+# Precompute binomials. `N_EDGES` is again the maximum.
 # Note that this is in general not a good way to compute binomials, but for small numbers it good enough.
 CNK = [
     # Returning 0 if `k > n` is critical for properly handling type 2 coordinates.

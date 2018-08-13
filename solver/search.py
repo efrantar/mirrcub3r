@@ -13,7 +13,7 @@ _PHASE2_DMAX = 10
 
 _DMAX = 50
 _coords = [[-1] * len(_N_COORDS) for _ in range(_DMAX)]
-_moves = [-MAX_MOVE_COUNT] * _DMAX # make sure that the last entry // MAX_MOVE_COUNT is always -1
+_moves = [-MOVES_PER_FACE] * _DMAX # make sure that the last entry // MAX_MOVE_COUNT is always -1
 
 COUNT = [0]
 
@@ -50,7 +50,7 @@ def phase1(d, dmax):
         return phase2(d, dmax)
 
     for m in range(N_MOVES):
-        if m // MAX_MOVE_COUNT != _moves[d-1] // MAX_MOVE_COUNT:
+        if m // MOVES_PER_FACE != _moves[d - 1] // MOVES_PER_FACE:
             _move(d, m, _PHASE1_COORDS)
             tmp = phase1(d + 1, dmax)
             if tmp != -1:
@@ -68,7 +68,7 @@ def phase2(d, dmax):
         return d
 
     for m in _PHASE2_MOVES:
-        if m // MAX_MOVE_COUNT != _moves[d-1] // MAX_MOVE_COUNT:
+        if m // MOVES_PER_FACE != _moves[d - 1] // MOVES_PER_FACE:
             _move(d, m, _PHASE2_COORDS)
             tmp = phase2(d + 1, dmax)
             if tmp != -1:
