@@ -37,11 +37,11 @@ _EDGES = {
         for j in range(MAX_EO + 1)
 }
 
-_COL = ['U', 'R', 'F', 'D', 'L', 'B'] # U, R, F, D, L, B
+COL = ['U', 'R', 'F', 'D', 'L', 'B'] # U, R, F, D, L, B
 
 def face_to_cubie(s):
     try:
-        f = map(lambda c: _COL.index(c), s)
+        f = map(lambda c: COL.index(c), s)
         cc = CubieCube.make_solved()
 
         for i, c in enumerate(_CORNLETS):
@@ -50,5 +50,5 @@ def face_to_cubie(s):
             cc.ep[i], cc.eo[i] = _EDGES[_encode([f[j] for j in e])]
 
         return cc
-    except:
+    except: # a bit hacky, but does the job good enough here
         pass
