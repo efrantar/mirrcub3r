@@ -1,9 +1,8 @@
 import numpy as np
 import cv2 as cv
 
-import urllib.request
 import os
-import time
+import urllib.request
 
 
 class IpCam:
@@ -15,18 +14,6 @@ class IpCam:
         frame = urllib.request.urlopen(self.url)
         frame = np.array(bytearray(frame.read()), dtype=np.uint8)
         frame = cv.imdecode(frame, -1) # choose encoding automatically -> default: BGR
-        return frame
-
-
-class FileCam:
-
-    def __init__(self, path):
-        self.path = path
-        self.image = 0
-
-    def frame(self):
-        frame = cv.imread(self.path + ('/%d.jpg' % self.image))
-        self.image += 1
         return frame
 
 
@@ -86,51 +73,4 @@ class CubeScanner:
                 
     def complete(self):
         return self.step > np.max(self.schedule)
-
-
-def test_data():
-    cam = IpCam('http://192.168.1.2:8080/shot.jpg')
-    cam = ImageSaver(cam, 'scans/' + time.strftime('%Y%m%d%H%M%S'))
-    os.mkdir(cam.path)
-
-    for i in range(6):
-        input()
-        cam.frame()
-        print(i + 1)
-
-
-def draw_positions(image, positions, size2):
-    for x, y in positions:
-        cv.rectangle(image, (x - SIZE2, y - SIZE2), (x + SIZE2, y + SIZE2), (0, 0, 0))
-    return image
-
-
-# test_data()
-
-SCHEDULE_TEST = np.array([i // 9 if i % 9 != 4 else -1 for i in range(54)])
- 
-STEP = 300
-POS_GRID = [[(175 + STEP * j, 625 + STEP * i) for j in range(3)] for i in range(3)]
-
-POSITIONS_TEST = np.full((54, 2), -1)
-for i in range(6):
-    for j in range(9):
-        if j != 4:
-            POSITIONS_TEST[9 * i + j, :] = POS_GRID[j // 3][j % 3]
-
-cam = FileCam('scans/20180609192123')
-scanner = CubeScanner(cam, SCHEDULE_TEST, POSITIONS_TEST, 50, per_col=8)
-
-while not scanner.complete():
-    scanner.next()
-colors = scanner.finish()
-colors[[4, 13, 22, 31, 40, 49]] = (1, 5, 2, 4, 0, 3)
-
-NUM_TO_COL = ['W', 'R', 'O', 'Y', 'G', 'B']
-for i in range(6):
-    for j in range(3):
-        for k in range(3):
-            print(NUM_TO_COL[colors[9 * i + 3 * j + k]], end='')
-        print()
-    print()
 

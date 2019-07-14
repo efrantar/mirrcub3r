@@ -4,6 +4,7 @@ import socket
 from ev3dev2.motor import *
 
 PORT = 2107
+RECV_BYTES = 100
 
 class Arm:
 
@@ -60,19 +61,22 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         conn, _ = sock.accept()
         print('Connected.')
 
-        with conn:
-            while running:
-                request = conn.recv(100).decode()
-                print('Received: "%s"' % request)
-                if request == 'shutdown':
-                    running = False
-                    break
-                elif handle_action(request):
-                    conn.sendall(b'OK')
-                    print('Sent: "%s"' % 'OK')
-                else:
-                    conn.sendall(b'Error')
-                    print('Sent: "%s"' % 'Error')
+        try:
+            with conn:
+                while running:
+                    request = conn.recv(RECV_BYTES).decode()
+                    print('Received: "%s"' % request)
+                    if request == 'shutdown':
+                        running = False
+                        break
+                    elif handle_action(request):
+                        conn.sendall(b'OK')
+                        print('Sent: "%s"' % 'OK')
+                    else:
+                        conn.sendall(b'Error')
+                        print('Sent: "%s"' % 'Error')
+        except:
+            pass
         print('Connection closed.')
 
 print('Socket closed.')
