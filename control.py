@@ -12,11 +12,11 @@ class Brick:
         self.sock.connect((host, Brick.PORT))
 
     def move(self, arm, count, speed_percent):
-        self.sock.sendall(b'move %s %d %d' % (arm, count, speed_percent))
+        self.sock.sendall(('move %s %d %d' % (arm, count, speed_percent)).encode())
         return self.sock.recv(Brick.RECV_BYTES).decode() == 'OK'
 
     def reset(self, arm):
-        self.sock.sendall(b'reset %s' % arm)
+        self.sock.sendall(('reset %s' % arm).encode())
         return self.sock.recv(Brick.RECV_BYTES).decode() == 'OK'
 
     def close(self):
@@ -29,14 +29,14 @@ class Robot:
 
     SPEED_PERCENT = 50
     AXIS_TO_MOVE = [
-        (0, 'c'), (0, 'b'), (1, 'a'),
+        (0, 'c'), (1, 'a'), (0, 'a'),
         (1, 'b'), (0, 'a'), None
     ]
 
     def move(self, move):
-        brick, arm = Robot.AXIS_TO_MOVE[move / 3]
-        count = [1, 2, -1][move % 3]
-        return self.bricks[brick].move(arm, count, SPEED_PERCENT)
+        brick, arm = Robot.AXIS_TO_MOVE[move // 3]
+        count = [-1, -2, 1][move % 3] # clockwise motor rotation corresponds to counter-clockwise cube move
+        return self.bricks[brick].move(arm, count, Robot.SPEED_PERCENT)
 
     def reset(self):
         for brick, arm in AXIS_TO_MOVE:
@@ -49,8 +49,9 @@ class Robot:
     def close(self):
         try:
             self.bricks[0].close()
-        except:
-            pass
+        except Exception as e:
+            self.bricks[1].close()
+            raise e
         self.bricks[1].close()
 
     def __enter__(self):

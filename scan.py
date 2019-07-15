@@ -44,24 +44,23 @@ class CubeScanner:
         self.per_col = per_col
         
         self.step = 0
-        # Makes sure that skipped positions will have max value after shifting
-        self.scans = np.full((len(schedule), 3), 180 - CubeScanner.SHIFT)
+        # Makes sure that skipped positions have max value
+        self.scans = np.full((len(schedule), 3), 179)
 
     def next(self):
-        frame = cam.frame()
+        frame = self.cam.frame()
         for pos in np.where(self.schedule == self.step)[0]:
             x, y = self.positions[pos, :]
-            self.scans[pos, :] = np.mean(
-                cv.cvtColor(
-                    frame[(y - self.size2):(y + self.size2), (x - self.size2):(x + self.size2), :], 
-                    cv.COLOR_BGR2HSV
-                ), axis=(0, 1)
-            )
+            roi = frame[(y - self.size2):(y + self.size2), (x - self.size2):(x + self.size2), :]
+            roi = cv.cvtColor(roi, cv.COLOR_BGR2HSV)
+            roi[:, 0] = (roi[:, 0] + CubeScanner.SHIFT) % 180 # max value is 180
+            self.scans[pos, :] = np.mean(roi, axis=(0, 1))
         self.step += 1
 
     def finish(self):
+        print(self.scans)
         colors = np.zeros(len(self.schedule), dtype=np.int) # white defaults to 0
-        asc_hue = np.argsort((self.scans[:, 0] + CubeScanner.SHIFT) % 181) # max value is 180
+        asc_hue = np.argsort(self.scans[:, 0])
         for i, pos in enumerate(
             asc_hue[
                 # Skip white positions
