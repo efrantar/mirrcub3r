@@ -1,6 +1,11 @@
 import subprocess
 import threading
+import time
+
 import numpy as np
+
+from control import *
+from scan import *
 
 GRID = [
     [200, 500], [525, 500], [835, 500], # 0, 1, 2
@@ -66,7 +71,7 @@ SCAN_PROCESS = [
 ]
 
 CAM_URL = 'http://192.168.178.25:8080/shot.jpg'
-SCAN_POSITIONS, SCAN_SCHEDULE = unzip(*SCAN_PROCESS)
+SCAN_POSITIONS, SCAN_SCHEDULE = zip(*SCAN_PROCESS)
 SCAN_POSITIONS = np.array(SCAN_POSITIONS)
 SCAN_SCHEDULE = np.array(SCAN_SCHEDULE)
 SIZE2 = 75
@@ -80,23 +85,9 @@ SCAN_MOVES = [
     ["L", "R'"],
     ["L", "R'", "L'", "R", "U'", "D"],
     ["U2", "D2"],
-    ["U'", "D", "L", "R'", "U", "D'", "L'", "R"]
+    ["U'", "D", "L", "R'", "U", "D'", "L'", "R"],
     ["L2", "R2"],
     ["L", "R'", "U'", "D"]
-]
-
-SCAN_MOVES = [,
-    ["F'", "B"],
-    ["F'", "B"],
-    ["F'", "B"],
-    ["F'", "B", "L'", "R"],
-    ["L'", "R"],
-    ["L'", "R"],
-    ["L'", "R", "F", "B'", "L'", "R"],
-    ["L2", "R2"],
-    ["L'", "R", "F'", "B", "L", "R'", "F'", "B"],
-    ["F2", "B2"],
-    ["F'", "B", "L'", "R"]
 ]
 
 SCAN_ORDER = [4, 3, 0, 1, 5, 2]
@@ -111,6 +102,8 @@ def solve(facecube):
     return [NAME_TO_MOVE[m] for m in res[2].split(' ')] if not res[2].startswith('Error') else None
 
 with Robot() as robot:
+    print('Connected.')
+
     cam = IpCam(CAM_URL)
     scanner = CubeScanner(cam, SCAN_SCHEDULE, SCAN_POSITIONS, SIZE2, per_col=8)
 
@@ -122,20 +115,24 @@ with Robot() as robot:
         thread1.join()
         thread2.join()
 
+    print('Scanning ...')
+    start = time.time()
     for seq in SCAN_MOVES:
         scanner.next()
-        for i in range(len(seq) - 1)
+        for i in range(0, len(seq), 2):
             run_parallel(NAME_TO_MOVE[seq[i]], NAME_TO_MOVE[seq[i + 1]])
     colors = scanner.finish()
     for f in range(6):
         colors[9 * f + 4] = SCAN_ORDER[f]
     facecube = [SCAN_COLOR[c] for c in colors]
 
+    print('Solving ...')
     sol = solve(facecube)
     if sol is not None:
+        print('Executing ...')
         for m in sol:
             robot.move(m)
-        print('Done!')
+        print('Done! %fs' % (time.time() - start))
     else:
         print('Error ...')
 

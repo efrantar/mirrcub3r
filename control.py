@@ -9,24 +9,23 @@ class Brick:
 
     def __init__(self, host):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.connect((host, Brick.PORT)
+        self.sock.connect((host, Brick.PORT))
 
     def move(self, arm, count, speed_percent):
-        sock.sendall(b'move %s %d %d' % (arm, count, speed_percent))
-        return sock.recv(Brick.RECV_BYTES).decode() == 'OK'
+        self.sock.sendall(b'move %s %d %d' % (arm, count, speed_percent))
+        return self.sock.recv(Brick.RECV_BYTES).decode() == 'OK'
 
     def reset(self, arm):
-        sock.sendall(b'reset %s' % arm)
-        return sock.recv(Brick.RECV_BYTES).decode() == 'OK'
+        self.sock.sendall(b'reset %s' % arm)
+        return self.sock.recv(Brick.RECV_BYTES).decode() == 'OK'
 
     def close(self):
         self.sock.close()
 
-# TODO: handle second brick
 class Robot:
 
-    HOST1 = '10.42.0.138'
-    HOST2 = ''
+    HOST1 = '10.42.1.138'
+    HOST2 = '10.42.0.202'
 
     SPEED_PERCENT = 50
     AXIS_TO_MOVE = [
@@ -48,12 +47,21 @@ class Robot:
         return True
 
     def close(self):
-        self.bricks[0].close()
+        try:
+            self.bricks[0].close()
+        except:
+            pass
+        self.bricks[1].close()
 
     def __enter__(self):
-        self.bricks = [Brick(Robot.HOST1), None]
+        self.bricks = [Brick(Robot.HOST1)]
+        try:
+            self.bricks.append(Brick(Robot.HOST2))
+        except Exception as e:
+            self.bricks[0].close()
+            raise e
         return self
 
-    def __exit__(self):
+    def __exit__(self, exception_type, exception_value, traceback):
         self.close()
 
