@@ -24,12 +24,12 @@ class Brick:
 
 class Robot:
 
-    HOST1 = '10.42.1.138'
-    HOST2 = '10.42.0.202'
+    HOST1 = '10.42.0.138'
+    HOST2 = '10.42.1.202'
 
     SPEED_PERCENT = 50
     AXIS_TO_MOVE = [
-        (0, 'c'), (1, 'a'), (0, 'a'),
+        (0, 'c'), (1, 'a'), (0, 'b'),
         (1, 'b'), (0, 'a'), None
     ]
 
@@ -39,7 +39,7 @@ class Robot:
         return self.bricks[brick].move(arm, count, Robot.SPEED_PERCENT)
 
     def reset(self):
-        for brick, arm in AXIS_TO_MOVE:
+        for brick, arm in Robot.AXIS_TO_MOVE:
             if brick == 1:
                 continue
             if not self.bricks[brick].reset(arm):

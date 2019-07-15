@@ -26,9 +26,9 @@ SCAN_PROCESS = [
     (GRID[8], 4), # R1
     (GRID[7], 4), # R2
     (GRID[6], 4), # R3
-    (GRID[1], 7), # R4
+    (GRID[7], 7), # R4
     (GRID[4], -1), # R5
-    (GRID[7], 7), # R6
+    (GRID[1], 7), # R6
     (GRID[2], 4), # R7
     (GRID[1], 4), # R8
     (GRID[0], 4), # R9
@@ -42,20 +42,20 @@ SCAN_PROCESS = [
     (GRID[1], 5), # F8
     (GRID[8], 2), # F9
     (GRID[0], 1), # D1
-    (GRID[5], 10), # D2
+    (GRID[3], 10), # D2
     (GRID[2], 1), # D3
     (GRID[3], 1), # D4
     (GRID[4], -1), # D5 
     (GRID[5], 1), # D6
     (GRID[6], 1), # D7
-    (GRID[3], 10), # D8
+    (GRID[5], 10), # D8
     (GRID[8], 1), # D9
     (GRID[8], 6), # L1
     (GRID[7], 6), # L2
     (GRID[6], 6), # L3
-    (GRID[7], 8), # L4
+    (GRID[1], 8), # L4
     (GRID[4], -1), # L5
-    (GRID[1], 8), # L6
+    (GRID[7], 8), # L6
     (GRID[2], 6), # L7
     (GRID[1], 6), # L8
     (GRID[0], 6), # L9
@@ -90,7 +90,7 @@ SCAN_MOVES = [
     ["L'", "R", "U'", "D"]
 ]
 
-SCAN_ORDER = [5, 3, 1, 2, 0, 4]
+SCAN_ORDER = [5, 3, 1, 4, 0, 2]
 SCAN_COLOR = ['L', 'F', 'B', 'R', 'D', 'U']
 
 NAME_TO_MOVE = {m: i for i, m in enumerate([
@@ -100,10 +100,14 @@ NAME_TO_MOVE = {m: i for i, m in enumerate([
 
 def solve(facecube):
     res = subprocess.check_output(['./twophase', 'twophase', facecube, '-1', '100']).decode().split('\n')
-    return [NAME_TO_MOVE[m] for m in res[2].split(' ')] if 'Error' not in res[2] else None
+    print(res)
+    if 'Error' in res[2]:
+        return None
+    return [NAME_TO_MOVE[m] for m in res[2].split(' ')] if res[2] != '' else []
 
 with Robot() as robot:
     print('Connected.')
+    # robot.reset() TODO: for now
 
     cam = IpCam(CAM_URL)
     cam = ImageSaver(cam, '.')
@@ -134,11 +138,12 @@ with Robot() as robot:
     sol = solve(facecube)
     if sol is not None:
         print('Executing ...')
+        print(sol)
         for m in sol:
             robot.move(m)
+            time.sleep(.1)
         print('Done! %fs' % (time.time() - start))
     else:
         print('Error.')
         print(time.time() - start)
-
 
