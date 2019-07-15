@@ -30,8 +30,8 @@ class Robot:
 
     SPEED_PERCENT = 50
     AXIS_TO_MOVE = [
-        None, (0, 'a'), (0, 'c'), 
-        (0, 'b'), (1, 'a'), (1, 'b')
+        (0, 'c'), (0, 'b'), (1, 'a'),
+        (1, 'b'), (0, 'a'), None
     ]
 
     def move(self, move):
