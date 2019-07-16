@@ -44,30 +44,29 @@ class CubeScanner:
         self.per_col = per_col
         
         self.step = 0
-        # Makes sure that skipped positions have max value
-        self.scans = np.full((len(schedule), 3), 179)
+        self.scans = np.full((len(schedule), 3), -1) # invalid positions have invalid value
 
     def next(self):
         frame = self.cam.frame()
+        
         for pos in np.where(self.schedule == self.step)[0]:
             x, y = self.positions[pos, :]
             roi = frame[(y - self.size2):(y + self.size2), (x - self.size2):(x + self.size2), :]
-            roi = cv.cvtColor(roi, cv.COLOR_BGR2HSV)
-            roi[:, 0] = (roi[:, 0] + CubeScanner.SHIFT) % 180 # max value is 180
-            self.scans[pos, :] = np.mean(roi, axis=(0, 1))
+            self.scans[pos, :] = np.median(cv.cvtColor(roi, cv.COLOR_BGR2HSV), axis=(0, 1))
+            self.scans[pos, 0] = (self.scans[pos, 0] + CubeScanner.SHIFT) % 180
+        
         self.step += 1
 
     def finish(self):
-        print(self.scans)
         colors = np.zeros(len(self.schedule), dtype=np.int) # white defaults to 0
-        asc_hue = np.argsort(self.scans[:, 0])
-        for i, pos in enumerate(
-            asc_hue[
-                # Skip white positions
-                ~np.in1d(asc_hue, np.argsort(self.scans[:, 1])[:self.per_col])
-            ][:-((9 - self.per_col) * 6)] # Ignore skipped positions (they will have max value)
-        ):
-            colors[pos] = i // self.per_col + 1
+       
+        # White has low value and high hue
+        tmp = (self.scans[:, 1] + 255 - self.scans[:, 2]) / 2.
+        asc_hue = np.argsort(self.scans[:, 0])[(54 - 6 * self.per_col):] # drop invalid positions
+        asc_hue = asc_hue[~np.in1d(asc_hue, np.argsort(tmp)[:self.per_col])] # drop white
+        for i in range(0, len(asc_hue), self.per_col):
+            colors[asc_hue[i:(i + self.per_col)]] = i // self.per_col + 1
+        
         return colors
                 
     def complete(self):

@@ -27,7 +27,7 @@ class Robot:
     HOST1 = '10.42.0.138'
     HOST2 = '10.42.1.202'
 
-    SPEED_PERCENT = 50
+    SPEED_PERCENT = 100
     AXIS_TO_MOVE = [
         (0, 'c'), (1, 'a'), (0, 'b'),
         (1, 'b'), (0, 'a'), None

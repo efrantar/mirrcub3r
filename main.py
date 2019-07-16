@@ -99,8 +99,7 @@ NAME_TO_MOVE = {m: i for i, m in enumerate([
 ])}
 
 def solve(facecube):
-    res = subprocess.check_output(['./twophase', 'twophase', facecube, '-1', '100']).decode().split('\n')
-    print(res)
+    res = subprocess.check_output(['./twophase', 'twophase', facecube, '-1', '50']).decode().split('\n')
     if 'Error' in res[2]:
         return None
     return [NAME_TO_MOVE[m] for m in res[2].split(' ')] if res[2] != '' else []
@@ -124,7 +123,7 @@ with Robot() as robot:
     print('Scanning ...')
     start = time.time()
     for seq in SCAN_MOVES:
-        time.sleep(.1)
+        time.sleep(.05)
         scanner.next()
         for i in range(0, len(seq), 2):
             run_parallel(NAME_TO_MOVE[seq[i]], NAME_TO_MOVE[seq[i + 1]])
@@ -132,18 +131,27 @@ with Robot() as robot:
     for f in range(6):
         colors[9 * f + 4] = SCAN_ORDER[f]
     facecube = ''.join([SCAN_COLOR[c] for c in colors])
-    print(facecube)
 
     print('Solving ...')
     sol = solve(facecube)
+
+    def opp_axes(m1, m2):
+        tmp = m1 // 3 - m2 // 3
+        return tmp == 0 or abs(tmp) == 3
+
     if sol is not None:
         print('Executing ...')
-        print(sol)
-        for m in sol:
-            robot.move(m)
-            time.sleep(.1)
+        
+        i = 0
+        while i < len(sol):
+            if i < len(sol) - 1 and opp_axes(sol[i], sol[i + 1]):
+                run_parallel(sol[i], sol[i + 1])
+                i += 2
+            else:
+                robot.move(sol[i])
+                i += 1
+
         print('Done! %fs' % (time.time() - start))
     else:
         print('Error.')
-        print(time.time() - start)
 
