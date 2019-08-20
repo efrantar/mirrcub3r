@@ -78,5 +78,5 @@ class Solver:
         sol = self.proc.stdout.readline().decode()[:-1] # strip trailing '\n'
         self.proc.stdout.readline() # lear time taken message
         self.proc.stdout.readline() # clear "Ready!" message 
-        return convert_sol(sol)
+        return convert_sol(sol) if 'Error' not in sol else None
 
