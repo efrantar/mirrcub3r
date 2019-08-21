@@ -19,13 +19,17 @@ class Brick:
         self.sock.sendall(('reset %s' % arm).encode())
         return self.sock.recv(Brick.RECV_BYTES).decode() == 'OK'
 
+    def button(self):
+        self.sock.sendall(b'button')
+        self.sock.recv(Brick.RECV_BYTES).decode()
+
     def close(self):
         self.sock.close()
 
 class Robot:
 
-    HOST1 = '10.42.0.138'
-    HOST2 = '10.42.1.202'
+    HOST1 = '10.42.0.52'
+    HOST2 = '10.42.1.180'
 
     SPEED_PERCENT = 100
     AXIS_TO_MOVE = [
@@ -37,6 +41,9 @@ class Robot:
         brick, arm = Robot.AXIS_TO_MOVE[move // 3]
         count = [-1, -2, 1][move % 3] # clockwise motor rotation corresponds to counter-clockwise cube move
         return self.bricks[brick].move(arm, count, Robot.SPEED_PERCENT)
+
+    def button(self):
+        self.bricks[1].button()
 
     def reset(self):
         for brick, arm in Robot.AXIS_TO_MOVE:

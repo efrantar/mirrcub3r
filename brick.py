@@ -2,6 +2,7 @@
 
 import socket
 from ev3dev2.motor import *
+from ev3dev2.sensor import *
 
 PORT = 2107
 RECV_BYTES = 100
@@ -49,6 +50,13 @@ for port in ['a', 'b', 'c', 'd']:
     except:
         pass
 
+button = None
+try:
+    button = TouchSensor('in1')
+    print('Touch sensor initialized.')
+except:
+    pass
+
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.bind(('0.0.0.0', PORT))
@@ -69,6 +77,10 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
                     if request == 'shutdown':
                         running = False
                         break
+                    elif request == 'button' and button is not None:
+                        button.wait_for_pressed()
+                        conn.sendall(b'OK')
+                        print('Sent: "%s"' % 'OK')
                     elif handle_action(request):
                         conn.sendall(b'OK')
                         print('Sent: "%s"' % 'OK')
