@@ -2,10 +2,12 @@
 
 import socket
 from ev3dev2.motor import *
-from ev3dev2.sensor import *
+from ev3dev2.sensor.lego import *
 
 PORT = 2107
 RECV_BYTES = 100
+OK = 'OK'
+ERROR = 'Error'
 
 class Arm:
 
@@ -16,27 +18,18 @@ class Arm:
         self.motor.stop_action = 'brake'
         self.reset()
 
-    def move(self, count, speed_percent):
+    def move(self, count, speed_percent, block):
         deg = Arm.DEGREES[abs(count) - 1] * (-1 if count < 0 else 1)
         self.pos += deg
-        self.motor.on_to_position(SpeedPercent(speed_percent), self.pos)
+        self.motor.on_to_position(SpeedPercent(speed_percent), self.pos, block=block)
 
-    def reset(self):
-        self.motor.position = 0
-        self.pos = 0
-
-def handle_action(action):
+def handle_move(action):
     try:
         splits = request.split(' ')
-        if splits[1] not in arms:
+        if splits[0] != 'move' or splits[1] not in arms:
             return False
-
-        if splits[0] == 'move':
-            arms[splits[1]].move(int(splits[2]), int(splits[3]))
-            return True
-        elif splits[0] == 'reset':
-            arms[splits[1]].reset()
-            return True
+        arms[splits[1]].move(int(splits[2]), int(splits[3]), bool(splits[4]))
+        return True
     except:
         pass
     return False
@@ -52,8 +45,8 @@ for port in ['a', 'b', 'c', 'd']:
 
 button = None
 try:
-    button = TouchSensor('in1')
-    print('Touch sensor initialized.')
+    button = TouchSensor()
+    print('Start button ready.')
 except:
     pass
 
@@ -69,6 +62,10 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         conn, _ = sock.accept()
         print('Connected.')
 
+        def send(msg):
+            conn.sendall(msg.encode())
+            print('Sent: "%s"' % msg)
+
         try:
             with conn:
                 while running:
@@ -77,16 +74,20 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
                     if request == 'shutdown':
                         running = False
                         break
-                    elif request == 'button' and button is not None:
+                    elif request == 'ping':
+                        send(OK)
+                    elif request == 'wait_for_press' and button is not None:
                         button.wait_for_pressed()
-                        conn.sendall(b'OK')
-                        print('Sent: "%s"' % 'OK')
-                    elif handle_action(request):
-                        conn.sendall(b'OK')
-                        print('Sent: "%s"' % 'OK')
+                        send(OK)
+                    elif request.startswith('move '):
+                        try:
+                            splits = request.split(' ')
+                            arms[splits[1]].move(int(splits[2]), int(splits[3]), bool(splits[4]))
+                            send(OK)
+                        except:
+                            send(ERROR)
                     else:
-                        conn.sendall(b'Error')
-                        print('Sent: "%s"' % 'Error')
+                        send(ERROR)
         except:
             pass
         print('Connection closed.')

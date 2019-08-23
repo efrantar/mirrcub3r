@@ -66,10 +66,10 @@ if __name__ == '__main__':
     for i in range(len(order)):
         order[i] += order[i] // 8 + int(order[i] % 8 >= 4)
 
-    cam = IpCam('http://192.168.178.25:8080/shot.jpg')
-    image = cam.frame()
+    # cam = IpCam('http://192.168.178.25:8080/shot.jpg')
+    # image = cam.frame()
     # cv2.imwrite('check.jpg', image)
-    # image = cv2.imread('sample.jpg')
+    image = cv2.imread('sample.jpg')
 
     import time
     scanner = CubeScanner(points, order, 8)
