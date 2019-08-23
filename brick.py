@@ -4,6 +4,8 @@ import socket
 from ev3dev2.motor import *
 from ev3dev2.sensor.lego import *
 
+SPEED = SpeedPercent(100)
+
 PORT = 2107
 RECV_BYTES = 100
 OK = 'OK'
@@ -18,21 +20,10 @@ class Arm:
         self.motor.stop_action = 'brake'
         self.reset()
 
-    def move(self, count, speed_percent, block):
+    def move(self, count, block):
         deg = Arm.DEGREES[abs(count) - 1] * (-1 if count < 0 else 1)
         self.pos += deg
-        self.motor.on_to_position(SpeedPercent(speed_percent), self.pos, block=block)
-
-def handle_move(action):
-    try:
-        splits = request.split(' ')
-        if splits[0] != 'move' or splits[1] not in arms:
-            return False
-        arms[splits[1]].move(int(splits[2]), int(splits[3]), bool(splits[4]))
-        return True
-    except:
-        pass
-    return False
+        self.motor.on_to_position(SPEED, self.pos, block=block)
 
 arms = {}
 for port in ['a', 'b', 'c', 'd']:
@@ -82,7 +73,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
                     elif request.startswith('move '):
                         try:
                             splits = request.split(' ')
-                            arms[splits[1]].move(int(splits[2]), int(splits[3]), bool(splits[4]))
+                            arms[splits[1]].move(int(splits[2]), bool(splits[3]))
                             send(OK)
                         except:
                             send(ERROR)
