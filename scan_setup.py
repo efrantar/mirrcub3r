@@ -3,7 +3,7 @@ import pickle
 import cv2
 import numpy as np
 
-IMAGE = 'sample.jpg'
+IMAGE = 'check.jpg'
 GUI = 'image'
 COLOR = (147, 20, 255) # deep pink
 FILE = 'scan-setup.pkl'

@@ -18,7 +18,7 @@ class Arm:
     def __init__(self, port):
         self.motor = MediumMotor(port)
         self.motor.stop_action = 'brake'
-        self.reset()
+        self.pos = self.motor.position # resetting to 0 sometimes causes motor-movement ...
 
     def move(self, count, block):
         deg = Arm.DEGREES[abs(count) - 1] * (-1 if count < 0 else 1)
@@ -43,6 +43,7 @@ except:
 
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
     sock.bind(('0.0.0.0', PORT))
     sock.listen()
     print('Socket up.')
@@ -73,7 +74,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
                     elif request.startswith('move '):
                         try:
                             splits = request.split(' ')
-                            arms[splits[1]].move(int(splits[2]), bool(splits[3]))
+                            arms[splits[1]].move(int(splits[2]), bool(int(splits[3])))
                             send(OK)
                         except:
                             send(ERROR)

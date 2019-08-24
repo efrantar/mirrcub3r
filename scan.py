@@ -50,7 +50,7 @@ class CubeScanner:
                 scans[i, :] = np.median(tmp, axis=(0, 1)) # median for better robustness
 
         # White has low value and high saturation
-        tmp = 2./3. * scans[:, 1] + 1./3. * (255 - scans[:, 2])
+        tmp = 1./2. * scans[:, 1] + 1./2. * (255 - scans[:, 2])
         asc_hue = np.argsort(scans[:, 0])[(N_STICKERS - 6 * self.n_percol):] # drop invalid positions
         asc_hue = asc_hue[~np.in1d(asc_hue, np.argsort(tmp)[:self.n_percol])] # drop white
  
@@ -66,10 +66,10 @@ if __name__ == '__main__':
     for i in range(len(order)):
         order[i] += order[i] // 8 + int(order[i] % 8 >= 4)
 
-    # cam = IpCam('http://192.168.178.25:8080/shot.jpg')
-    # image = cam.frame()
-    # cv2.imwrite('check.jpg', image)
-    image = cv2.imread('sample.jpg')
+    cam = IpCam('http://192.168.178.25:8080/shot.jpg')
+    image = cam.frame()
+    cv2.imwrite('check.jpg', image)
+    # image = cv2.imread('ok1.jpg')
 
     import time
     scanner = CubeScanner(points, order, 8)

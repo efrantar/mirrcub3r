@@ -30,7 +30,7 @@ with Solver() as solver:
         print('Scanner set up.')
 
         print('Ready.')
-        robot.button()
+        robot.wait_for_press()
         frame = cam.frame()
 
         print('Scanning ...')
