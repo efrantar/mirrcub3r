@@ -24,54 +24,20 @@ class Brick:
     def close(self):
         self.sock.close()
 
-CUT = 0
-ANTICUT = 1
-AX_CUT = 2
-AX_ANTICUT = 3
-AX_PARTCUT = 4
-
 def are_parallel(move1, move2):
     return abs(move1 // 3 - move // 3) == 3
 
-def cw(move):
-    return move % 3 <= 1 # TODO: for now all double moves are clockwise
-
-def is_double(move):
+def is_half(move):
     return move % 3 == 1
-
-# `m2` must not be an axial move. This is because we determine the
-# corner-cutting individually for both parts of an axial move as they
-# are not affected by each other.
-def cut_type(m1, m2):
-    # `m1` is a simple move
-    if not ininstance(m1, int):
-        return CUT if cw(m1) != cw(m2) else ANTICUT
-
-    m11, m12 = m1 # `m1` is an axial move
-
-    # When the axial move contains exactly one double move, this is the
-    # same as if we are corner-cutting with just this double move. Note
-    # that this can only be done because the double-move delay is longer
-    # than the single-move axial anti-cut one anyways.
-    if is_double(m11):
-        if not is_double(m12):
-            return CUT if cw(m11) != cw(m2) else ANTICUT
-    else:
-        if is_double(m12):
-            return CUT if cw(m12) != cw(m2) else ANTICUT
-
-    cw11 = cw(m11)
-    cw12 = cw(m12)
-    cw2 = cw(m2)
-
-    if cw11 == cw12:
-        return AX_CUT if cw11 != cw2 else AX_ANTICUT:
-    return AX_PARTCUT # slice-moves will always be partial cuts
 
 class Robot:
 
     HOST0 = '10.42.0.52'
     HOST1 = '10.42.1.180'
+
+    QUARTER_TIME = 0.10
+    HALF_TIME = 0.18
+    AX_PENALTY = 0.02
 
     FACE_TO_MOVE = [
         (0, 'c'), (1, 'a'), (0, 'b'),
@@ -79,14 +45,6 @@ class Robot:
     ]
     # Clockwise motor rotation corresponds to counter-clockwise cube move
     POW_TO_COUNT = [-1, -2, 1]
-
-    DELAYS = [
-        [0.09, 0.19], # CUT
-        [0.10, 0.20], # ANTICUT
-        [0.09, 0.09], # AX_CUT
-        [0.11, 0.21], # AX_ANTICUT
-        [0.10, 0.20]  # AX_PARTCUT
-    ] # TODO: just some initial guesses, further experimentation will be necessary
 
     def move(self, move, seconds=-1):
         brick, arm = Robot.FACE_TO_MOVE[move // 3]
@@ -117,23 +75,36 @@ class Robot:
     def execute(self, sol):
         sol1 = []
         axial = []
+        half = []
+
         i = 0
         while i < len(sol):
             if i < len(sol) - 1 and are_parallel(sol[i], sol[i + 1]):
                 sol1.append((sol[i], sol[i + 1])
                 axial.append(True)
+                half.append(is_half(sol[i]) or is_half(sol[i + 1])
                 i += 2
             else:
                 sol1.append(sol[i])
                 axial.append(False)
+                half.append(is_half(sol[i]))
                 i += 1
 
         i = 0
         while i < len(sol1) - 1:
-            pass
+            seconds = HALF_TIME if half[i] else QUARTER_TIME
+            if axial[i]:
+                seconds += AX_PENALTY
+                self.move(sol1[i][0], sol1[i][1], seconds=seconds)
+            else:
+                self.move(sol1[i], seconds=seconds)
+        if axial[-1]:
+            self.move(sol1[-1][0], sol1[-1][1])
+        else:
+            self.move(sol1[-1])
 
     def wait_for_press(self):
-        self.bricks[1].wait_for_press() # the button is connected to the brick 1
+        return self.bricks[1].wait_for_press() # the button is connected to the brick 1
 
     def close(self):
         try:

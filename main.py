@@ -29,14 +29,6 @@ with Solver() as solver:
         cam = IpCam(CAM_URL)
         print('Scanner set up.')
 
-        def run_parallel(m1, m2):
-            thread1 = threading.Thread(target=lambda: robot.move(m1))
-            thread2 = threading.Thread(target=lambda: robot.move(m2))
-            thread1.start()
-            thread2.start()
-            thread1.join()
-            thread2.join()
-
         print('Ready.')
         robot.button()
         frame = cam.frame()
@@ -51,22 +43,9 @@ with Solver() as solver:
         print('Solving ...')
         sol = solver.solve(facecube)
 
-        def opp_axes(m1, m2):
-            tmp = m1 // 3 - m2 // 3
-            return tmp == 0 or abs(tmp) == 3
-
         if sol is not None:
             print('Executing ...')
-        
-            i = 0
-            while i < len(sol):
-                if i < len(sol) - 1 and opp_axes(sol[i], sol[i + 1]):
-                    run_parallel(sol[i], sol[i + 1])
-                    i += 2
-                else:
-                    robot.move(sol[i])
-                    i += 1
-
+            robot.execute(sol)
             print('Done! %fs' % (time.time() - start))
         else:
             print('Error.')
