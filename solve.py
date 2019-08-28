@@ -80,3 +80,7 @@ class Solver:
         self.proc.stdout.readline() # clear "Ready!" message 
         return convert_sol(sol) if 'Error' not in sol else None
 
+if __name__ == '__main__':
+    with Solver() as solver:
+        print(solver.solve('DBUFUDUBRBRFFRFULBFUDUFRRRRDUBBDDLLDLDLLLFUDFRRFLBBLUB'))
+

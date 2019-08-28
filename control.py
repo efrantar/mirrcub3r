@@ -15,11 +15,9 @@ class Brick:
         self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         self.sock.connect((host, Brick.PORT))
 
-    def move(self, arm, count, block):
-        self.sock.sendall(('move %s %d %d' % (arm, count, block)).encode())
-        if block:
-            return self.sock.recv(Brick.RECV_BYTES).decode() == OK
-        return True
+    def move(self, arm, count, early):
+        self.sock.sendall(('move %s %d %d' % (arm, count, early)).encode())
+        return self.sock.recv(Brick.RECV_BYTES).decode() == OK
 
     def wait_for_press(self):
         self.sock.sendall(b'wait_for_press')
@@ -38,15 +36,70 @@ def are_parallel(move1, move2):
 def is_half(move):
     return move % 3 == 1
 
+def clock(move):
+    return move % 3 <= 1 # TODO: for now all half-turns are considered to be clockwise
+
+CUT = 0
+ANTICUT = 1
+AX_CUT = 2
+AX_PARTCUT = 3
+AX_ANTICUT = 4
+AXAX_CUT = 5
+AXAX_PARTCUT = 6
+AXAX_ANTICUT = 7
+
+def cut(m1, m2):
+    if isinstance(m1, int) and isinstance(m2, tuple):
+        return cut(m2, m1)
+    if isinstance(m1, tuple) and isinstance(m2, tuple):
+        return max(cut(m1, m2[0]), cut(m1, m2[1])) + 3
+
+    if isinstance(m1, int):
+        return CUT if clock(m1) != clock(m2) else ANTICUT
+
+    m11, m12 = m1
+    clock1 = clock(m11)
+    clock2 = clock(m12)
+
+    if is_half(m11):
+        if not is_half(m12):
+            return CUT if clock1 != clock(m2) else ANTICUT
+    else:
+        if is_half(m12):
+            return CUT if clock2 != clock(m2) else ANTICUT
+
+    if clock1 == clock2:
+        return AX_CUT if clock1 != clock(m2) else AX_ANTICUT
+    return AX_PARTCUT
+
+def is_f(m):
+    return m // 3 == 2
+
 class Robot:
 
     HOST0 = '10.42.1.52'
     HOST1 = '10.42.0.180'
 
-    # TODO: this is not very tight yet
-    QUARTER_TIME = 0.11
-    HALF_TIME = 0.19
-    AX_PENALTY = 0.01
+    # - Geared + No Cut = 25 / 12.5 / 12.5
+    # - Geared + Cut = 37.5 / 18.75 / 18.75 TODO
+    # Maybe AXIAL + F lower penalty
+    EARLY_CUT = [
+        45, # TODO: was 37.5
+        25,
+        25,
+        18.75,
+        12.5,
+        25,
+        12.5,
+        0
+    ]
+    FPENALTY_CUT = [
+        22.25, # TODO: was 18.75
+        12.5,
+        18.75,
+        18.75,
+        12.5
+    ] # F is never involved in an AXAX situation
 
     FACE_TO_MOVE = [
         (0, 'c'), (1, 'a'), (0, 'b'),
@@ -55,33 +108,23 @@ class Robot:
     # Clockwise motor rotation corresponds to counter-clockwise cube move
     POW_TO_COUNT = [-1, -2, 1]
 
-    def move1(self, move, seconds=-1):
+    def move1(self, move, early=0):
         brick, arm = Robot.FACE_TO_MOVE[move // 3]
         count = Robot.POW_TO_COUNT[move % 3]
-        if seconds < 0:
-            return self.bricks[brick].move(arm, count, True)
-        self.bricks[brick].move(arm, count, False)
-        time.sleep(seconds)
-        return True
+        return self.bricks[brick].move(arm, count, early)
 
-    def move2(self, move1, move2, seconds=-1):
-        if seconds < 0:
-            thread1 = threading.Thread(target=lambda: self.move1(move1))
-            thread2 = threading.Thread(target=lambda: self.move1(move2))
-            thread1.start()
-            thread2.start()
-            thread1.join()
-            thread2.join()
-            return
-        brick1, arm1 = Robot.FACE_TO_MOVE[move1 // 3]
-        count1 = Robot.POW_TO_COUNT[move1 % 3]
-        brick2, arm2 = Robot.FACE_TO_MOVE[move2 // 3]
-        count2 = Robot.POW_TO_COUNT[move2 % 3]
-        self.bricks[brick1].move(arm1, count1, False)
-        self.bricks[brick2].move(arm2, count2, False)
-        time.sleep(seconds)
-
+    def move2(self, move1, move2, early=0):
+        thread1 = threading.Thread(target=lambda: self.move1(move1, early))
+        thread2 = threading.Thread(target=lambda: self.move1(move2, early))
+        thread1.start()
+        thread2.start()
+        thread1.join()
+        thread2.join()
+        
     def execute(self, sol):
+        if len(sol) == 0:
+            return
+
         sol1 = []
         axial = []
         half = []
@@ -100,12 +143,20 @@ class Robot:
                 i += 1
 
         for i in range(len(sol1) - 1):
-            seconds = Robot.HALF_TIME if half[i] else Robot.QUARTER_TIME
+            tick = time.time()
+            print(sol1[i])           
+ 
+            cut1 = cut(sol1[i], sol1[i + 1])
+            early = Robot.EARLY_CUT[cut1]
+            if (not axial[i] and is_f(sol1[i])) or (not axial[i + 1] and is_f(sol1[i + 1])):
+                early -= Robot.FPENALTY_CUT[cut1]
+            print(early)
+
             if axial[i]:
-                seconds += Robot.AX_PENALTY
-                self.move2(sol1[i][0], sol1[i][1], seconds=seconds)
+                self.move2(sol1[i][0], sol1[i][1], early=early)
             else:
-                self.move1(sol1[i], seconds=seconds)
+                self.move1(sol1[i], early=early)
+            print(time.time() - tick)
         if axial[-1]:
             self.move2(sol1[-1][0], sol1[-1][1])
         else:
