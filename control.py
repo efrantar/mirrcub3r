@@ -80,11 +80,8 @@ class Robot:
     HOST0 = '10.42.1.52'
     HOST1 = '10.42.0.180'
 
-    # - Geared + No Cut = 25 / 12.5 / 12.5
-    # - Geared + Cut = 37.5 / 18.75 / 18.75 TODO
-    # Maybe AXIAL + F lower penalty
     EARLY_CUT = [
-        45, # TODO: was 37.5
+        37.5,
         25,
         25,
         18.75,
@@ -94,12 +91,12 @@ class Robot:
         0
     ]
     FPENALTY_CUT = [
-        22.25, # TODO: was 18.75
+        18.75,
         12.5,
         18.75,
         18.75,
         12.5
-    ] # F is never involved in an AXAX situation
+    ] # F is never involved in any AXAX situation
 
     FACE_TO_MOVE = [
         (0, 'c'), (1, 'a'), (0, 'b'),
