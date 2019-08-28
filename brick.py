@@ -61,7 +61,7 @@ profile = sys.argv[1]
 if profile == 'rd':
     ARMS = [('a', GEARING), ('b', GEARING)]
 elif profile == 'ufl':
-    ARMS = [('a', GEARING), ('b', None), ('c', GEARING)]
+    ARMS = [('a', GEARING), ('b', GEARING), ('c', GEARING)]
 else:
     print('Unsupported profile "%s"' % profile)
     exit(0)
@@ -102,13 +102,11 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
 
         def send(msg):
             conn.sendall(msg.encode())
-            print('Sent: "%s"' % msg)
 
         try:
-            with conn:
+            with conn: # debug `print()`s actually increase latency noticeably
                 while running:
                     request = conn.recv(RECV_BYTES).decode()
-                    print('Received: "%s"' % request)
                     if request == 'shutdown':
                         running = False
                         break

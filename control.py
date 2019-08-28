@@ -81,22 +81,15 @@ class Robot:
     HOST1 = '10.42.0.180'
 
     EARLY_CUT = [
-        37.5,
-        25,
-        25,
-        18.75,
-        12.5,
-        25,
-        12.5,
-        0
+        15,
+        10,
+        15,
+        1, 
+        5,
+        15,
+        0,
+        1
     ]
-    FPENALTY_CUT = [
-        18.75,
-        12.5,
-        18.75,
-        18.75,
-        12.5
-    ] # F is never involved in any AXAX situation
 
     FACE_TO_MOVE = [
         (0, 'c'), (1, 'a'), (0, 'b'),
@@ -141,14 +134,10 @@ class Robot:
 
         for i in range(len(sol1) - 1):
             tick = time.time()
-            print(sol1[i])           
- 
+            print(sol1[i])
             cut1 = cut(sol1[i], sol1[i + 1])
             early = Robot.EARLY_CUT[cut1]
-            if (not axial[i] and is_f(sol1[i])) or (not axial[i + 1] and is_f(sol1[i + 1])):
-                early -= Robot.FPENALTY_CUT[cut1]
             print(early)
-
             if axial[i]:
                 self.move2(sol1[i][0], sol1[i][1], early=early)
             else:

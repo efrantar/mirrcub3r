@@ -26,17 +26,18 @@ with Robot() as robot:
 
     tick = time.time()
     
-    # print(len(SEQ3))
-    robot.execute(SEQ3)
+    robot.execute(SEQ1)
 
     # CUT
     # robot.execute(moves("L D' R U' F L' D R' U F' L D' R U' F L' D R' U F'"))
     # ANTICUT
     # robot.execute(moves("L D R U F L D R U F L D R U F L D R U F"))
     # AX_CUT
-    # robot.execute(moves("L R U' L R F' L R D'"))
+    # robot.execute(moves("L R U' L R F' L R D' L R U' L R F' L R"))
     # AX_PARTCUT
     # robot.execute(moves("L R' U L R' F L R' D"))
+    # AX_ANTICUT
+    # robot.execute(moves("L R U' L R F' L R D'"))
     # AXAX_CUT
     # robot.execute(moves("L R U' D' L R U' D' L R U' D' L R"))
     # AXAX_PARTCUT
