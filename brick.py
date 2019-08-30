@@ -10,7 +10,7 @@ RECV_BYTES = 100
 OK = 'OK'
 ERROR = 'Error'
 
-GEARING = (40, 24)
+GEARING = None # (40, 24)
 
 # Translates direction and degrees according to gearing
 def translate(deg, gearing):
@@ -26,7 +26,7 @@ class Arm:
 
     def __init__(self, port, gearing=None):
         self.motor = MediumMotor(port)
-        self.motor.stop_action = 'brake' # gets by far the best accurracy
+        self.motor.stop_action = 'hold' # gets by far the best accurracy
         self.gearing = gearing
 
     def translate(self, deg):
@@ -34,19 +34,16 @@ class Arm:
             return deg
         return -deg * self.gear1 / self.gear2
 
-    def move(self, count, early=0):
+    def move(self, count, early=-1):
         deg = translate(Arm.DEGREES[count], self.gearing)
-        early = abs(translate(early, self.gearing)) # easier if this is always positive
 
-        # Simply use a standard blocking move as it could otherwise cause infinite loops
-        if early == 0:
+        # Block in this case
+        if early < 0:
             self.motor.on_for_degrees(Arm.SPEED, deg)
             return
 
-        if deg < 0:
-            ret = self.motor.position + deg + early # `deg < 0`
-        else:
-            ret = self.motor.position + deg - early
+        early = abs(translate(early, self.gearing)) # easier if this is always positive
+        ret = self.motor.position + deg + (early if deg < 0 else -early)
 
         self.motor.on_for_degrees(Arm.SPEED, deg, block=False)
 

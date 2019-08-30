@@ -77,18 +77,28 @@ def is_f(m):
 
 class Robot:
 
-    HOST0 = '10.42.1.52'
-    HOST1 = '10.42.0.180'
+    HOST0 = '10.42.0.52'
+    HOST1 = '10.42.1.180'
 
-    EARLY_CUT = [
-        15,
-        10,
-        15,
-        1, 
-        5,
-        15,
-        0,
-        1
+#    EARLY_CUT = [
+#        15,
+#        10,
+#        15,
+#        1, 
+#        5,
+#        15,
+#        0,
+#        1
+#    ]
+    EARLY_CUT = [ # +5 worked in tuning
+        47.5,
+        52.5,
+        32.5,
+        7.5,
+        17.5,
+        52.5,
+        12.5,
+        0
     ]
 
     FACE_TO_MOVE = [
@@ -98,12 +108,12 @@ class Robot:
     # Clockwise motor rotation corresponds to counter-clockwise cube move
     POW_TO_COUNT = [-1, -2, 1]
 
-    def move1(self, move, early=0):
+    def move1(self, move, early=-1):
         brick, arm = Robot.FACE_TO_MOVE[move // 3]
         count = Robot.POW_TO_COUNT[move % 3]
         return self.bricks[brick].move(arm, count, early)
 
-    def move2(self, move1, move2, early=0):
+    def move2(self, move1, move2, early=-1):
         thread1 = threading.Thread(target=lambda: self.move1(move1, early))
         thread2 = threading.Thread(target=lambda: self.move1(move2, early))
         thread1.start()

@@ -26,8 +26,7 @@ with Robot() as robot:
 
     tick = time.time()
     
-    robot.execute(SEQ1)
-
+    robot.execute(SEQ3)
     # CUT
     # robot.execute(moves("L D' R U' F L' D R' U F' L D' R U' F L' D R' U F'"))
     # ANTICUT

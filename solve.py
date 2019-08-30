@@ -2,7 +2,7 @@ from subprocess import Popen, PIPE
 import time
 
 N_THREADS = 12 # number of threads to use for solving
-TIME = 50 # solving time in milliseconds
+TIME = 25 # solving time in milliseconds
 
 # This is the move-order used by the solver
 NAME_TO_MOVE = {m: i for i, m in enumerate([
