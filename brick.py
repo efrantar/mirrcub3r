@@ -10,7 +10,56 @@ RECV_BYTES = 100
 OK = 'OK'
 ERROR = 'Error'
 
-GEARING = None # (40, 24)
+GEARING = (40, 24)
+
+class SingleMotor:
+
+    def __init__(self, port, deg90=90):
+        self.motor = MediumMotor(port)
+        self.motor.speed_sp = self.motor.max_speed
+        self.motor.stop_action = 'hold' # other modes completely unusable
+        # Open files to minimize any delays later
+        self.motor.position
+        self.motor.stop() # open the `command` file
+
+    @property
+    def position(self):
+        return self.motor.position
+
+    @property
+    def position_sp(self):
+        return self.motor.position_sp
+
+    @position_sp.setter
+    def position_sp(self, position_sp):
+        self.motor.position_sp = position_sp
+
+    def run_to_abs_pos(self):
+        self.motor.run_to_abs_pos()
+
+class DoubleMotor:
+
+    def __init__(self, port1, port2):
+        self.motor1 = SingleMotor(port1)
+        self.motor2 = SingleMotor(port2)
+
+    @property
+    def position(self):
+        # We rely on the fact that the gears are always aligned and minimize file accesses
+        return self.motor1.position
+
+    @property
+    def position_sp(self):
+        return self.motor1.position_sp
+
+    @position_sp.setter
+    def position_sp(self, position_sp):
+        self.motor1.position_sp = position_sp
+        self.motor2.position_sp = position_sp
+
+    def run_to_abs_pos(self):
+        self.motor1.run_to_abs_pos()
+        self.motor2.run_to_abs_pos()
 
 # Translates direction and degrees according to gearing
 def translate(deg, gearing):
@@ -21,31 +70,29 @@ def translate(deg, gearing):
 
 class Arm:
 
-    SPEED = SpeedPercent(100) # we always want to run at max speed
     DEGREES = [0, 90, 180, -180, -90] # so that we can index directly for all possible counts
 
-    def __init__(self, port, gearing=None):
-        self.motor = MediumMotor(port)
-        self.motor.stop_action = 'hold' # gets by far the best accurracy
+    def __init__(self, motor, gearing=None):
+        self.motor = motor
         self.gearing = gearing
+        self.pos = motor.position
 
-    def translate(self, deg):
-        if self.gear1 == 1:
-            return deg
-        return -deg * self.gear1 / self.gear2
+        # Ideal position should always be a perfectly aligned cube
+        deg90 = abs(translate(90, gearing))
+        pos = abs(self.pos)
+        pos = pos // deg90 * deg90 if pos % deg90 < deg90 / 2 else (pos // deg90 + 1) * deg90
+        self.pos = pos * (-1 if self.pos < 0 else 1)
 
-    def move(self, count, early=-1):
+    def move(self, count, early):
+        cur = self.motor.position # just a single file read for setup
         deg = translate(Arm.DEGREES[count], self.gearing)
-
-        # Block in this case
-        if early < 0:
-            self.motor.on_for_degrees(Arm.SPEED, deg)
-            return
-
         early = abs(translate(early, self.gearing)) # easier if this is always positive
-        ret = self.motor.position + deg + (early if deg < 0 else -early)
+        # Apply correction if we are not perfectly aligned
+        ret = cur + (self.pos - cur) + deg + (early if deg < 0 else -early)
+        self.pos += deg
 
-        self.motor.on_for_degrees(Arm.SPEED, deg, block=False)
+        self.motor.position_sp = self.pos
+        self.motor.run_to_abs_pos()
 
         if deg < 0:
             while self.motor.position > ret:
@@ -54,32 +101,21 @@ class Arm:
             while self.motor.position < ret:
                 pass
 
+arms = {}
+button = None
+
 profile = sys.argv[1]
 if profile == 'rd':
-    ARMS = [('a', GEARING), ('b', GEARING)]
+    arms['a'] = Arm(SingleMotor('outA'), None)
+    arms['b'] = Arm(SingleMotor('outB'), None)
+    button = TouchSensor() # simply auto-detect
 elif profile == 'ufl':
-    ARMS = [('a', GEARING), ('b', GEARING), ('c', GEARING)]
+    arms['a'] = Arm(SingleMotor('outA'), None)
+    arms['b'] = Arm(DoubleMotor('outB', 'outC'), GEARING)
+    arms['c'] = Arm(SingleMotor('outD'), None)
 else:
     print('Unsupported profile "%s"' % profile)
     exit(0)
-
-arms = {}
-for port, gearing in ARMS:
-    try:
-        arm = Arm('out' + port.upper(), gearing)
-        arms[port] = arm
-        print('Initialized arm on port %s.' % port)
-    except:
-        print('Error initializing arm on port %s.' % port)
-        exit(0)
-
-# TODO: we want to support multiple buttons in the future
-button = None
-try:
-    button = TouchSensor()
-    print('Start button ready.')
-except:
-    pass
 
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
     # Avoid annoying "Address already in use"
