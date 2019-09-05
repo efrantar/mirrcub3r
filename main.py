@@ -17,39 +17,38 @@ SCAN_COLOR = ['L', 'F', 'B', 'R', 'D', 'U']
 with Solver() as solver:
     print('Solver initialized.')
 
-    with Robot() as robot:
-        print('Connected to robot.')
+    robot = Robot()
+    print('Connected to robot.')
 
-        points, order = pickle.load(open('scan-setup.pkl', 'rb'))
-        order = np.array([i for i, _ in order])
-        for i in range(len(order)):
-            order[i] += order[i] // 8 + int(order[i] % 8 >= 4)
-        scanner = CubeScanner(points, order, 8)
+    points, order = pickle.load(open('scan-setup.pkl', 'rb'))
+    order = np.array([i for i, _ in order])
+    for i in range(len(order)):
+        order[i] += order[i] // 8 + int(order[i] % 8 >= 4)
+    scanner = CubeScanner(points, order, 8)
 
-        cam = IpCam(CAM_URL)
-        print('Scanner set up.')
+    cam = IpCam(CAM_URL)
+    print('Scanner set up.')
 
-        while True:
-            print('Ready.')
-            robot.wait_for_press()
-            frame = cam.frame()
-            start = time.time()
+    while True:
+        print('Ready.')
+        # robot.wait_for_press()
+        input()
+        frame = cam.frame()
+        start = time.time()
 
-            print('Scanning ...')
-            colors = scanner.scan(frame)
-            for f in range(6):
-                colors[9 * f + 4] = SCAN_ORDER[f]
-            facecube = ''.join([SCAN_COLOR[c] for c in colors])
+        print('Scanning ...')
+        colors = scanner.scan(frame)
+        for f in range(6):
+            colors[9 * f + 4] = SCAN_ORDER[f]
+        facecube = ''.join([SCAN_COLOR[c] for c in colors])
 
-            print('Solving ...')
-            sol = solver.solve(facecube)
+        print('Solving ...')
+        sol = solver.solve(facecube)
 
-            if sol is not None:
-                print('Executing ...')
-                robot.execute(sol)
-                print('Done! %fs' % (time.time() - start))
-            else:
-                print('Error.')
-            time.sleep(5)
-
+        if sol is not None:
+            print('Executing ...')
+            robot.execute(sol)
+            print('Done! %fs' % (time.time() - start))
+        else:
+            print('Error.')
 

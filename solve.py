@@ -76,11 +76,7 @@ class Solver:
         self.proc.stdin.write(('%s -1 %d\n' % (facecube, TIME)).encode())
         self.proc.stdin.flush() # command needs to be received instantly
         sol = self.proc.stdout.readline().decode()[:-1] # strip trailing '\n'
-        self.proc.stdout.readline() # lear time taken message
+        self.proc.stdout.readline() # clear time taken message
         self.proc.stdout.readline() # clear "Ready!" message 
         return convert_sol(sol) if 'Error' not in sol else None
-
-if __name__ == '__main__':
-    with Solver() as solver:
-        print(solver.solve('DBUFUDUBRBRFFRFULBFUDUFRRRRDUBBDDLLDLDLLLFUDFRRFLBBLUB'))
 

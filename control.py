@@ -1,183 +1,109 @@
-import socket
 import threading
 import time
+import ev3
 
-OK = 'OK'
+def command(ports, deg):
+    return b''.join([
+        ev3.opOutput_Step_Power,
+        ev3.LCX(0),
+        ev3.LCX(ports),
+        ev3.LCX(100 if deg > 0 else -100),
+        ev3.LCX(0),
+        ev3.LCX(abs(deg)),
+        ev3.LCX(0),
+        ev3.LCX(1)
+    ])
 
-class Brick:
+def rotate1(brick, ports, deg):
+    brick.send_direct_cmd(command(ports, deg))
 
-    PORT = 2107
-    RECV_BYTES = 100
+def rotate2(brick, ports1, deg1, ports2, deg2):
+    brick.send_direct_cmd(
+        command(ports1, deg1) + command(ports2, deg2)
+    )
 
-    def __init__(self, host):
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        # We want to avoid any extra transmission delay
-        self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-        self.sock.connect((host, Brick.PORT))
+class MotorType:
 
-    def move(self, arm, count, early):
-        self.sock.sendall(('move %s %d %d' % (arm, count, early)).encode())
-        return self.sock.recv(Brick.RECV_BYTES).decode() == OK
+    def __init__(self, degs, waits, penalty):
+        self.degs = degs
+        self.waits = waits
+        self.penalty = penalty
 
-    def wait_for_press(self):
-        self.sock.sendall(b'wait_for_press')
-        return self.sock.recv(Brick.RECV_BYTES).decode() == OK
-    
-    def ping(self):
-        self.sock.sendall(b'ping')
-        return self.sock.recv(Brick.RECV_BYTES).decode() == OK
+    def move(self, brick, ports, count):
+        deg = self.degs[count]
+        rotate1(brick, ports, deg)
+        time.sleep(self.waits[count])
 
-    def close(self):
-        self.sock.close()
-
-def are_parallel(move1, move2):
-    return abs(move1 // 3 - move2 // 3) == 3
-
-def is_half(move):
-    return move % 3 == 1
-
-def clock(move):
-    return move % 3 <= 1 # TODO: for now all half-turns are considered to be clockwise
-
-CUT = 0
-ANTICUT = 1
-AX_CUT = 2
-AX_PARTCUT = 3
-AX_ANTICUT = 4
-AXAX_CUT = 5
-AXAX_PARTCUT = 6
-AXAX_ANTICUT = 7
-
-def cut(m1, m2):
-    if isinstance(m1, int) and isinstance(m2, tuple):
-        return cut(m2, m1)
-    if isinstance(m1, tuple) and isinstance(m2, tuple):
-        return max(cut(m1, m2[0]), cut(m1, m2[1])) + 3
-
-    if isinstance(m1, int):
-        return CUT if clock(m1) != clock(m2) else ANTICUT
-
-    m11, m12 = m1
-    clock1 = clock(m11)
-    clock2 = clock(m12)
-
-    if is_half(m11):
-        if not is_half(m12):
-            return CUT if clock1 != clock(m2) else ANTICUT
-    else:
-        if is_half(m12):
-            return CUT if clock2 != clock(m2) else ANTICUT
-
-    if clock1 == clock2:
-        return AX_CUT if clock1 != clock(m2) else AX_ANTICUT
-    return AX_PARTCUT
-
-def is_f(m):
-    return m // 3 == 2
+def are_parallel(m1, m2):
+    return abs(m1 // 3 - m2 // 3) == 3
 
 class Robot:
 
-    HOST0 = '10.42.0.52'
-    HOST1 = '10.42.1.180'
+    HOST0 = '00:16:53:40:CE:B6'
+    HOST1 = '00:16:53:4A:BA:BA'
 
-#    EARLY_CUT = [
-#        15,
-#        10,
-#        15,
-#        1, 
-#        5,
-#        15,
-#        0,
-#        1
-#    ]
-    EARLY_CUT = [ # +5 worked in tuning
-        47.5,
-        52.5,
-        32.5,
-        7.5,
-        17.5,
-        52.5,
-        12.5,
-        0
+    SINGLE_MOTOR = MotorType(
+        [0, 90, 180, -180, -90], [0, .079, .151, .151, .079], .007
+    )
+    DOUBLE_MOTOR = MotorType(
+        [0, -54, -108, 108, 54], [0, .057, .104, .104, .057], .005
+    )
+   
+    COUNT = [-1, -2, 1] 
+    MOVE = [
+        (0, ev3.PORT_A, SINGLE_MOTOR),
+        (1, ev3.PORT_C + ev3.PORT_D, DOUBLE_MOTOR),
+        (0, ev3.PORT_B + ev3.PORT_C, DOUBLE_MOTOR),
+        (0, ev3.PORT_D, SINGLE_MOTOR),
+        (1, ev3.PORT_A + ev3.PORT_B, DOUBLE_MOTOR)
     ]
 
-    FACE_TO_MOVE = [
-        (0, 'c'), (1, 'a'), (0, 'b'),
-        (1, 'b'), (0, 'a'), None
-    ]
-    # Clockwise motor rotation corresponds to counter-clockwise cube move
-    POW_TO_COUNT = [-1, -2, 1]
+    def __init__(self):
+        self.bricks = [
+            ev3.EV3(protocol='Usb', host=Robot.HOST0), ev3.EV3(protocol='Usb', host=Robot.HOST1)
+        ]
+        self.bricks[0].lock = threading.Lock()
+        self.bricks[1].lock = threading.Lock()
 
-    def move1(self, move, early=-1):
-        brick, arm = Robot.FACE_TO_MOVE[move // 3]
-        count = Robot.POW_TO_COUNT[move % 3]
-        return self.bricks[brick].move(arm, count, early)
+    def move1(self, m):
+        brick, ports, motor = Robot.MOVE[m // 3]
+        brick = self.bricks[brick]
+        motor.move(brick, ports, Robot.COUNT[m % 3])
 
-    def move2(self, move1, move2, early=-1):
-        thread1 = threading.Thread(target=lambda: self.move1(move1, early))
-        thread2 = threading.Thread(target=lambda: self.move1(move2, early))
-        thread1.start()
-        thread2.start()
-        thread1.join()
-        thread2.join()
-        
+    def move2(self, m1, m2):
+        brick, ports1, arm1 = Robot.MOVE[m1 // 3]
+        _, ports2, arm2 = Robot.MOVE[m2 // 3]
+        count1 = Robot.COUNT[m1 % 3]
+        count2 = Robot.COUNT[m2 % 3]
+        wait = max(arm1.waits[count1], arm2.waits[count2])
+        penalty = max(arm1.penalty, arm2.penalty)
+        rotate2(self.bricks[brick], ports1, arm1.degs[count1], ports2, arm2.degs[count2])
+        time.sleep(wait + penalty)
+
     def execute(self, sol):
         if len(sol) == 0:
             return
 
         sol1 = []
         axial = []
-        half = []
 
         i = 0
         while i < len(sol):
             if i < len(sol) - 1 and are_parallel(sol[i], sol[i + 1]):
                 sol1.append((sol[i], sol[i + 1]))
                 axial.append(True)
-                half.append(is_half(sol[i]) or is_half(sol[i + 1]))
                 i += 2
             else:
                 sol1.append(sol[i])
                 axial.append(False)
-                half.append(is_half(sol[i]))
                 i += 1
 
-        for i in range(len(sol1) - 1):
+        print(len(sol1), sol1)
+        for i in range(len(sol1)):
             tick = time.time()
-            print(sol1[i])
-            cut1 = cut(sol1[i], sol1[i + 1])
-            early = Robot.EARLY_CUT[cut1]
-            print(early)
             if axial[i]:
-                self.move2(sol1[i][0], sol1[i][1], early=early)
+                self.move2(sol1[i][0], sol1[i][1])
             else:
-                self.move1(sol1[i], early=early)
+                self.move1(sol1[i])
             print(time.time() - tick)
-        if axial[-1]:
-            self.move2(sol1[-1][0], sol1[-1][1])
-        else:
-            self.move1(sol1[-1])
-
-    def wait_for_press(self):
-        return self.bricks[1].wait_for_press() # the button is connected to the brick 1
-
-    def close(self):
-        try:
-            self.bricks[0].close()
-        except Exception as e:
-            self.bricks[1].close()
-            raise e
-        self.bricks[1].close()
-
-    def __enter__(self):
-        self.bricks = [Brick(Robot.HOST0)]
-        try:
-            self.bricks.append(Brick(Robot.HOST1))
-        except Exception as e:
-            self.bricks[0].close()
-            raise e
-        return self
-
-    def __exit__(self, exception_type, exception_value, traceback):
-        self.close()
 
