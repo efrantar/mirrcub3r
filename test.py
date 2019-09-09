@@ -17,11 +17,29 @@ SEQ3 = [3, 12, 1, 5, 13, 2, 11, 2, 11, 5, 6, 0, 11, 14, 9, 12, 11, 13, 0, 3, 2, 
 robot = Robot()
 print('Connected.')
 
-tick = time.time()
+# tick = time.time()
 
-# robot.execute(moves("U D L"))
-    
-robot.execute(SEQ3)
+if True:
+    tick = time.time()
+    robot.execute(moves("L D R U F L D R U F L D R U F L D R U F"))
+    robot.execute(moves("L D' R U' F L' D R' U F' L D' R U' F L' D R' U F'"))
+    # robot.execute(moves("R L U' R L D' R L U' R L D' R L U'"))
+    # robot.execute(moves("U D R' U D L' U D R' U D L' U D R'"))
+    # robot.execute(moves("U D R L"))
+    print(time.time() - tick)
+    exit()
+
+for _ in range(5):
+    time.sleep(.5)
+    # robot.execute(moves("D L'"))
+    robot.execute(moves("R L"))
+
+# robot.execute(moves("D L' D L' D L' D L' D L'"))
+
+# robot.execute(moves("L D' L D' L D' L D' L D'"))
+# robot.execute(moves("L' F' L' F' L' F' L' F' L' F'"))
+
+# robot.execute(SEQ1)
 
 # CUT 
 # robot.execute(moves("L D' R U' F L' D R' U F' L D' R U' F L' D R' U F'"))
@@ -40,5 +58,5 @@ robot.execute(SEQ3)
 # AXAX_ANTICUT
 # robot.execute(moves("L R U D L R U D L R U D L R U D L R"))
 
-print(time.time() - tick)
+#  print(time.time() - tick)
 

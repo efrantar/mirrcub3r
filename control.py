@@ -2,7 +2,7 @@ import threading
 import time
 import ev3
 
-def command(ports, deg):
+def rot_cmd(ports, deg):
     return b''.join([
         ev3.opOutput_Step_Power,
         ev3.LCX(0),
@@ -14,96 +14,187 @@ def command(ports, deg):
         ev3.LCX(1)
     ])
 
-def rotate1(brick, ports, deg):
-    brick.send_direct_cmd(command(ports, deg))
-
-def rotate2(brick, ports1, deg1, ports2, deg2):
-    brick.send_direct_cmd(
-        command(ports1, deg1) + command(ports2, deg2)
-    )
-
-class MotorType:
-
-    def __init__(self, degs, waits, penalty):
-        self.degs = degs
-        self.waits = waits
-        self.penalty = penalty
-
-    def move(self, brick, ports, count):
-        deg = self.degs[count]
-        rotate1(brick, ports, deg)
-        time.sleep(self.waits[count])
-
 def are_parallel(m1, m2):
     return abs(m1 // 3 - m2 // 3) == 3
+
+def is_half(move):
+    return move % 3 == 1
+
+def is_clock(move):
+    return move % 3 <= 1 # TODO: for now all half-turns are considered to be clockwise
+
+CUT = 0
+ANTICUT = 1
+AX_CUT1 = 2 # simple -> axial
+AX_CUT2 = 3 # axial -> simple
+AX_PARTCUT1 = 4
+AX_PARTCUT2 = 5
+AX_ANTICUT1 = 6
+AX_ANTICUT2 = 7
+AXAX_CUT = 8
+AXAX_PARTCUT = 9
+AXAX_ANTICUT = 10
+
+def cut(m1, m2):
+    if isinstance(m1, int) and isinstance(m2, tuple):
+        return cut(m2, m1) - 1
+    if isinstance(m1, tuple) and isinstance(m2, tuple):
+        return AXAX_CUT + (max(cut(m1, m2[0]), cut(m1, m2[1])) // 2 - 1)
+
+    if isinstance(m1, int):
+        return CUT if is_clock(m1) != is_clock(m2) else ANTICUT
+
+    m11, m12 = m1
+    clock1 = is_clock(m11)
+    clock2 = is_clock(m12)
+
+    if is_half(m11):
+        if not is_half(m12):
+            return CUT if clock1 != is_clock(m2) else ANTICUT
+    else:
+        if is_half(m12):
+            return CUT if clock2 != is_clock(m2) else ANTICUT
+
+    if clock1 == clock2:
+        return AX_CUT2 if clock1 != is_clock(m2) else AX_ANTICUT2
+    return AX_PARTCUT2
+
+DELAY = {}
+
+DELAY[(False, True, CUT)] = .079
+DELAY[(True, False, CUT)] = .057
+DELAY[(True, True, CUT)] = .057
+DELAY[(False, True, ANTICUT)] = .079
+DELAY[(True, False, ANTICUT)] = .057
+DELAY[(True, True, ANTICUT)] = .057
+
+DELAY[(False, True, AX_CUT1)] = 0
+DELAY[(True, False, AX_CUT1)] = 0
+DELAY[(True, True, AX_CUT1)] = 0
+DELAY[(False, True, AX_CUT2)] = 0
+DELAY[(True, False, AX_CUT2)] = 0
+DELAY[(True, True, AX_CUT2)] = 0
+DELAY[(False, True, AX_PARTCUT1)] = 0
+DELAY[(True, False, AX_PARTCUT1)] = 0
+DELAY[(True, True, AX_PARTCUT1)] = 0
+DELAY[(False, True, AX_PARTCUT2)] = 0
+DELAY[(True, False, AX_PARTCUT2)] = 0
+DELAY[(True, True, AX_PARTCUT2)] = 0
+DELAY[(False, True, AX_ANTICUT1)] = 0
+DELAY[(True, False, AX_ANTICUT1)] = 0
+DELAY[(True, True, AX_ANTICUT1)] = 0
+DELAY[(False, True, AX_ANTICUT2)] = 0
+DELAY[(True, False, AX_ANTICUT2)] = 0
+DELAY[(True, True, AX_ANTICUT2)] = 0
+
+DELAY[(False, True, AXAX_CUT)] = 0.086
+DELAY[(True, False, AXAX_CUT)] = 0.062
+DELAY[(False, True, AXAX_PARTCUT)] = 0.086
+DELAY[(True, False, AXAX_PARTCUT)] = 0.062
+DELAY[(False, True, AXAX_ANTICUT)] = 0.086
+DELAY[(True, False, AXAX_ANTICUT)] = 0.062
+
+AX_DOUBLE_OPT = 0.025
+END_DELAY = 0.050
+
+class Motor:
+
+    SINGLE_DEGS = [0, 90, 180, -180, -90]
+    DOUBLE_DEGS = [0, -54, -108, 108, 54]
+
+    def __init__(self, brick, ports, double):
+        self.brick = brick
+        self.ports = ports
+        self.double = double
+        self.degs = Motor.DOUBLE_DEGS if double else Motor.SINGLE_DEGS
+
+    def move_cmd(self, count):
+        return rot_cmd(self.ports, self.degs[count])
 
 class Robot:
 
     HOST0 = '00:16:53:40:CE:B6'
     HOST1 = '00:16:53:4A:BA:BA'
 
-    SINGLE_MOTOR = MotorType(
-        [0, 90, 180, -180, -90], [0, .079, .151, .151, .079], .007
-    )
-    DOUBLE_MOTOR = MotorType(
-        [0, -54, -108, 108, 54], [0, .057, .104, .104, .057], .005
-    )
-   
-    COUNT = [-1, -2, 1] 
-    MOVE = [
-        (0, ev3.PORT_A, SINGLE_MOTOR),
-        (1, ev3.PORT_C + ev3.PORT_D, DOUBLE_MOTOR),
-        (0, ev3.PORT_B + ev3.PORT_C, DOUBLE_MOTOR),
-        (0, ev3.PORT_D, SINGLE_MOTOR),
-        (1, ev3.PORT_A + ev3.PORT_B, DOUBLE_MOTOR)
-    ]
+    COUNT = [-1, -2, 1]
+    FACE_TO_MOTOR = [
+        Motor(0, ev3.PORT_A, False),
+        Motor(1, ev3.PORT_C + ev3.PORT_D, True),
+        Motor(0, ev3.PORT_B + ev3.PORT_C, True),
+        Motor(0, ev3.PORT_D, False),
+        Motor(1, ev3.PORT_A + ev3.PORT_B, True)
+    ] 
 
     def __init__(self):
         self.bricks = [
             ev3.EV3(protocol='Usb', host=Robot.HOST0), ev3.EV3(protocol='Usb', host=Robot.HOST1)
         ]
-        self.bricks[0].lock = threading.Lock()
-        self.bricks[1].lock = threading.Lock()
 
-    def move1(self, m):
-        brick, ports, motor = Robot.MOVE[m // 3]
-        brick = self.bricks[brick]
-        motor.move(brick, ports, Robot.COUNT[m % 3])
+    def move(self, m, delay):
+        if isinstance(m, tuple): # axial move
+            m1, m2 = m
+            motor1 = Robot.FACE_TO_MOTOR[m1 // 3]
+            motor2 = Robot.FACE_TO_MOTOR[m2 // 3]
 
-    def move2(self, m1, m2):
-        brick, ports1, arm1 = Robot.MOVE[m1 // 3]
-        _, ports2, arm2 = Robot.MOVE[m2 // 3]
-        count1 = Robot.COUNT[m1 % 3]
-        count2 = Robot.COUNT[m2 % 3]
-        wait = max(arm1.waits[count1], arm2.waits[count2])
-        penalty = max(arm1.penalty, arm2.penalty)
-        rotate2(self.bricks[brick], ports1, arm1.degs[count1], ports2, arm2.degs[count2])
-        time.sleep(wait + penalty)
+            # Optimization when exactly one of the two moves is a half-turn; note that this works
+            # because faces involved in an axial move always have the same gearing
+            if is_half(m1) != is_half(m2):
+                if is_double(m2):
+                    m1, m2 = (m2, m1)
+                    motor1, motor2 = (motor2, motor1)
+                self.bricks[motor1.brick].send_direct_cmd(motor1.move_cmd(Robot.COUNT[m1 % 3]))
+                time.sleep(AX_DOUBLE_OPT)
+                self.bricks[motor2.brick].send_direct_cmd(motor2.move_cmd(Robot.COUNT[m2 % 3]))
+                time.sleep(delay - AX_DOUBLE_OPT)
+                return
+
+            # Axial moves always happen on the same brick
+            self.bricks[motor1.brick].send_direct_cmd(
+                motor1.move_cmd(Robot.COUNT[m1 % 3]) + motor2.move_cmd(Robot.COUNT[m2 % 3])
+            )
+            time.sleep(delay)
+            return
+         
+        motor = Robot.FACE_TO_MOTOR[m // 3]
+        self.bricks[motor.brick].send_direct_cmd(motor.move_cmd(Robot.COUNT[m % 3])) 
+        time.sleep(delay)
 
     def execute(self, sol):
         if len(sol) == 0:
             return
 
         sol1 = []
-        axial = []
-
         i = 0
         while i < len(sol):
             if i < len(sol) - 1 and are_parallel(sol[i], sol[i + 1]):
                 sol1.append((sol[i], sol[i + 1]))
-                axial.append(True)
                 i += 2
             else:
                 sol1.append(sol[i])
-                axial.append(False)
                 i += 1
-
         print(len(sol1), sol1)
+
         for i in range(len(sol1)):
-            tick = time.time()
-            if axial[i]:
-                self.move2(sol1[i][0], sol1[i][1])
+            if isinstance(sol1[i], tuple):
+                double1 = Robot.FACE_TO_MOTOR[sol1[i][0] // 3].double
             else:
-                self.move1(sol1[i])
+                double1 = Robot.FACE_TO_MOTOR[sol1[i] // 3].double
+            
+            if i < len(sol1) - 1:
+                if isinstance(sol1[i + 1], tuple):
+                    double2 = Robot.FACE_TO_MOTOR[sol1[i + 1][1] // 3].double
+                else:
+                    double2 = Robot.FACE_TO_MOTOR[sol1[i + 1] // 3].double
+                delay = DELAY[(double1, double2, cut(sol1[i], sol1[i + 1]))]
+            else:
+                delay = END_DELAY
+            
+            # TODO
+            # if is_half(sol1[i]):
+            #    delay += HALF_PENALTY2 if motor1.double else HALF_PENALTY1
+            
+            tick = time.time()
+            self.move(sol1[i], delay)
             print(time.time() - tick)
+
 
