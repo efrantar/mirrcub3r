@@ -17,7 +17,12 @@ def rot_cmd(ports, deg):
 def are_parallel(m1, m2):
     return abs(m1 // 3 - m2 // 3) == 3
 
+def is_axial(move):
+    return isinstance(move, tuple)
+
 def is_half(move):
+    if is_axial(move):
+        return is_half(move[0]) or is_half(move[1])
     return move % 3 == 1
 
 def is_clock(move):
@@ -36,12 +41,12 @@ AXAX_PARTCUT = 9
 AXAX_ANTICUT = 10
 
 def cut(m1, m2):
-    if isinstance(m1, int) and isinstance(m2, tuple):
+    if not is_axial(m1) and is_axial(m2):
         return cut(m2, m1) - 1
-    if isinstance(m1, tuple) and isinstance(m2, tuple):
+    if is_axial(m1) and is_axial(m2):
         return AXAX_CUT + (max(cut(m1, m2[0]), cut(m1, m2[1])) // 2 - 1)
 
-    if isinstance(m1, int):
+    if not is_axial(m1):
         return CUT if is_clock(m1) != is_clock(m2) else ANTICUT
 
     m11, m12 = m1
@@ -64,28 +69,28 @@ DELAY = {}
 DELAY[(False, True, CUT)] = .079
 DELAY[(True, False, CUT)] = .057
 DELAY[(True, True, CUT)] = .057
-DELAY[(False, True, ANTICUT)] = .079
-DELAY[(True, False, ANTICUT)] = .057
-DELAY[(True, True, ANTICUT)] = .057
+DELAY[(False, True, ANTICUT)] = .079 # .0705 # .079
+DELAY[(True, False, ANTICUT)] = .057 # .047 # .057
+DELAY[(True, True, ANTICUT)] = .0285 # .0445 # .057
 
-DELAY[(False, True, AX_CUT1)] = 0
-DELAY[(True, False, AX_CUT1)] = 0
-DELAY[(True, True, AX_CUT1)] = 0
-DELAY[(False, True, AX_CUT2)] = 0
-DELAY[(True, False, AX_CUT2)] = 0
-DELAY[(True, True, AX_CUT2)] = 0
-DELAY[(False, True, AX_PARTCUT1)] = 0
-DELAY[(True, False, AX_PARTCUT1)] = 0
-DELAY[(True, True, AX_PARTCUT1)] = 0
-DELAY[(False, True, AX_PARTCUT2)] = 0
-DELAY[(True, False, AX_PARTCUT2)] = 0
-DELAY[(True, True, AX_PARTCUT2)] = 0
-DELAY[(False, True, AX_ANTICUT1)] = 0
-DELAY[(True, False, AX_ANTICUT1)] = 0
-DELAY[(True, True, AX_ANTICUT1)] = 0
-DELAY[(False, True, AX_ANTICUT2)] = 0
-DELAY[(True, False, AX_ANTICUT2)] = 0
-DELAY[(True, True, AX_ANTICUT2)] = 0
+DELAY[(False, True, AX_CUT1)] = .079
+DELAY[(True, False, AX_CUT1)] = .057
+DELAY[(True, True, AX_CUT1)] = .057
+DELAY[(False, True, AX_CUT2)] = .086
+DELAY[(True, False, AX_CUT2)] = .062
+DELAY[(True, True, AX_CUT2)] = .062
+DELAY[(False, True, AX_PARTCUT1)] = .079
+DELAY[(True, False, AX_PARTCUT1)] = .057
+DELAY[(True, True, AX_PARTCUT1)] = .057
+DELAY[(False, True, AX_PARTCUT2)] = .086
+DELAY[(True, False, AX_PARTCUT2)] = .062
+DELAY[(True, True, AX_PARTCUT2)] = .062
+DELAY[(False, True, AX_ANTICUT1)] = .079
+DELAY[(True, False, AX_ANTICUT1)] = .057
+DELAY[(True, True, AX_ANTICUT1)] = .057
+DELAY[(False, True, AX_ANTICUT2)] = .086
+DELAY[(True, False, AX_ANTICUT2)] = .062
+DELAY[(True, True, AX_ANTICUT2)] = .062
 
 DELAY[(False, True, AXAX_CUT)] = 0.086
 DELAY[(True, False, AXAX_CUT)] = 0.062
@@ -94,8 +99,11 @@ DELAY[(True, False, AXAX_PARTCUT)] = 0.062
 DELAY[(False, True, AXAX_ANTICUT)] = 0.086
 DELAY[(True, False, AXAX_ANTICUT)] = 0.062
 
+HALF_PENALTY1 = .072
+HALF_PENALTY2 = .044
+
 AX_DOUBLE_OPT = 0.025
-END_DELAY = 0.050
+END_DELAY = 0.040 # differentiate between cases to shave off a few extra ms
 
 class Motor:
 
@@ -129,9 +137,14 @@ class Robot:
         self.bricks = [
             ev3.EV3(protocol='Usb', host=Robot.HOST0), ev3.EV3(protocol='Usb', host=Robot.HOST1)
         ]
+    
+    def is_double(self, move):
+        if is_axial(move):
+            move = move[0] # axial moves always have the same gearing
+        return Robot.FACE_TO_MOTOR[move // 3].double
 
     def move(self, m, delay):
-        if isinstance(m, tuple): # axial move
+        if is_axial(m): # axial move
             m1, m2 = m
             motor1 = Robot.FACE_TO_MOTOR[m1 // 3]
             motor2 = Robot.FACE_TO_MOTOR[m2 // 3]
@@ -139,13 +152,14 @@ class Robot:
             # Optimization when exactly one of the two moves is a half-turn; note that this works
             # because faces involved in an axial move always have the same gearing
             if is_half(m1) != is_half(m2):
-                if is_double(m2):
+                print('Test')
+                if is_half(m2):
                     m1, m2 = (m2, m1)
                     motor1, motor2 = (motor2, motor1)
                 self.bricks[motor1.brick].send_direct_cmd(motor1.move_cmd(Robot.COUNT[m1 % 3]))
                 time.sleep(AX_DOUBLE_OPT)
                 self.bricks[motor2.brick].send_direct_cmd(motor2.move_cmd(Robot.COUNT[m2 % 3]))
-                time.sleep(delay - AX_DOUBLE_OPT)
+                time.sleep(delay - AX_DOUBLE_OPT - 0.001) # extra transmission delay
                 return
 
             # Axial moves always happen on the same brick
@@ -175,26 +189,17 @@ class Robot:
         print(len(sol1), sol1)
 
         for i in range(len(sol1)):
-            if isinstance(sol1[i], tuple):
-                double1 = Robot.FACE_TO_MOTOR[sol1[i][0] // 3].double
-            else:
-                double1 = Robot.FACE_TO_MOTOR[sol1[i] // 3].double
-            
             if i < len(sol1) - 1:
-                if isinstance(sol1[i + 1], tuple):
-                    double2 = Robot.FACE_TO_MOTOR[sol1[i + 1][1] // 3].double
-                else:
-                    double2 = Robot.FACE_TO_MOTOR[sol1[i + 1] // 3].double
-                delay = DELAY[(double1, double2, cut(sol1[i], sol1[i + 1]))]
+                delay = DELAY[(
+                    self.is_double(sol1[i]), self.is_double(sol1[i + 1]), cut(sol1[i], sol1[i + 1])
+                )]
             else:
                 delay = END_DELAY
             
-            # TODO
-            # if is_half(sol1[i]):
-            #    delay += HALF_PENALTY2 if motor1.double else HALF_PENALTY1
+            if is_half(sol1[i]):
+                delay += HALF_PENALTY2 if self.is_double(sol1[i]) else HALF_PENALTY1
             
             tick = time.time()
             self.move(sol1[i], delay)
             print(time.time() - tick)
-
 
