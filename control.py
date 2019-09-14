@@ -68,10 +68,10 @@ DELAY = {}
 
 DELAY[(False, True, CUT)] = .079
 DELAY[(True, False, CUT)] = .057
-DELAY[(True, True, CUT)] = .057
+DELAY[(True, True, CUT)] = .057 # .0285 # .057
 DELAY[(False, True, ANTICUT)] = .079 # .0705 # .079
 DELAY[(True, False, ANTICUT)] = .057 # .047 # .057
-DELAY[(True, True, ANTICUT)] = .0285 # .0445 # .057
+DELAY[(True, True, ANTICUT)] = .057 # .0445 # .057
 
 DELAY[(False, True, AX_CUT1)] = .079
 DELAY[(True, False, AX_CUT1)] = .057
@@ -152,7 +152,6 @@ class Robot:
             # Optimization when exactly one of the two moves is a half-turn; note that this works
             # because faces involved in an axial move always have the same gearing
             if is_half(m1) != is_half(m2):
-                print('Test')
                 if is_half(m2):
                     m1, m2 = (m2, m1)
                     motor1, motor2 = (motor2, motor1)

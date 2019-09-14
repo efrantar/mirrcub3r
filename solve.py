@@ -37,13 +37,12 @@ def convert_sol(sol):
             else:
                 if splits[i] == splits[i + 2]:
                     splits1.append('%s2' % splits[i][:1])
-                    splits1 += splits[(i + 1):(i + 4):2] # in case there is no element `(i + 3)`
-                    i += 4
+                    splits1.append(splits[i + 1])
+                    i += 3
                 elif i < len(splits) - 3 and splits[i + 1] == splits[i + 2]:
                     splits1.append(splits[i])
                     splits1.append('%s2' % splits[i + 1][:1])
-                    splits1.append(splits[i + 3])
-                    i += 4
+                    i += 3
                 else:
                     splits1 += splits[i:(i + 2)]
                     i += 2

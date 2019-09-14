@@ -12,13 +12,10 @@ def moves(s):
 
 SEQ1 = [3, 14, 1, 10, 12, 1, 13, 6, 2, 11, 3, 8, 0, 11, 5, 12, 9, 8, 0, 5, 14, 6, 5, 14, 6, 5]
 SEQ2 = [0, 9, 6, 11, 5, 2, 3, 2, 11, 5, 14, 6, 5, 14, 6, 2, 14, 7, 4, 7, 0, 11, 4]
-SEQ3 = [3, 12, 1, 5, 13, 2, 11, 2, 11, 5, 6, 0, 11, 14, 9, 12, 11, 13, 0, 3, 2, 11, 3, 12, 8]
+SEQ3 = [3, 12, 1, 5, 13, 1, 10, 5, 6, 0, 11, 14, 9, 12, 11, 13, 0, 3, 2, 11, 3, 12, 8]
 
 robot = Robot()
 print('Connected.')
-
-robot.execute(moves("F R F"))
-exit()
 
 if False:
     tick = time.time()
@@ -39,7 +36,7 @@ if False:
 # robot.execute(moves("L' F' L' F' L' F' L' F' L' F'"))
 
 tick = time.time()
-robot.execute(SEQ2)
+robot.execute(SEQ1)
 print(time.time() - tick)
 
 # CUT 
