@@ -17,6 +17,9 @@ SEQ3 = [3, 12, 1, 5, 13, 1, 10, 5, 6, 0, 11, 14, 9, 12, 11, 13, 0, 3, 2, 11, 3, 
 robot = Robot()
 print('Connected.')
 
+robot.execute(moves("D L F"))
+exit(0)
+
 if False:
     tick = time.time()
     # robot.execute(moves("L D R U F L D R U F L D R U F L D R U F"))

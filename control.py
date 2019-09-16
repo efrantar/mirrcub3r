@@ -1,18 +1,5 @@
-import threading
 import time
 import ev3
-
-def rot_cmd(ports, deg):
-    return b''.join([
-        ev3.opOutput_Step_Power,
-        ev3.LCX(0),
-        ev3.LCX(ports),
-        ev3.LCX(100 if deg > 0 else -100),
-        ev3.LCX(0),
-        ev3.LCX(abs(deg)),
-        ev3.LCX(0),
-        ev3.LCX(1)
-    ])
 
 def are_parallel(m1, m2):
     return abs(m1 // 3 - m2 // 3) == 3
@@ -64,48 +51,27 @@ def cut(m1, m2):
         return AX_CUT2 if clock1 != is_clock(m2) else AX_ANTICUT2
     return AX_PARTCUT2
 
-DELAY = {}
-
-DELAY[(False, True, CUT)] = .079
-DELAY[(True, False, CUT)] = .057
-DELAY[(True, True, CUT)] = .057 # .0285 # .057
-DELAY[(False, True, ANTICUT)] = .079 # .0705 # .079
-DELAY[(True, False, ANTICUT)] = .057 # .047 # .057
-DELAY[(True, True, ANTICUT)] = .057 # .0445 # .057
-
-DELAY[(False, True, AX_CUT1)] = .079
-DELAY[(True, False, AX_CUT1)] = .057
-DELAY[(True, True, AX_CUT1)] = .057
-DELAY[(False, True, AX_CUT2)] = .086
-DELAY[(True, False, AX_CUT2)] = .062
-DELAY[(True, True, AX_CUT2)] = .062
-DELAY[(False, True, AX_PARTCUT1)] = .079
-DELAY[(True, False, AX_PARTCUT1)] = .057
-DELAY[(True, True, AX_PARTCUT1)] = .057
-DELAY[(False, True, AX_PARTCUT2)] = .086
-DELAY[(True, False, AX_PARTCUT2)] = .062
-DELAY[(True, True, AX_PARTCUT2)] = .062
-DELAY[(False, True, AX_ANTICUT1)] = .079
-DELAY[(True, False, AX_ANTICUT1)] = .057
-DELAY[(True, True, AX_ANTICUT1)] = .057
-DELAY[(False, True, AX_ANTICUT2)] = .086
-DELAY[(True, False, AX_ANTICUT2)] = .062
-DELAY[(True, True, AX_ANTICUT2)] = .062
-
-DELAY[(False, True, AXAX_CUT)] = 0.086
-DELAY[(True, False, AXAX_CUT)] = 0.062
-DELAY[(False, True, AXAX_PARTCUT)] = 0.086
-DELAY[(True, False, AXAX_PARTCUT)] = 0.062
-DELAY[(False, True, AXAX_ANTICUT)] = 0.086
-DELAY[(True, False, AXAX_ANTICUT)] = 0.062
-
-HALF_PENALTY1 = .072
-HALF_PENALTY2 = .044
-
-AX_DOUBLE_OPT = 0.025
-END_DELAY = 0.040 # differentiate between cases to shave off a few extra ms
+CUT_WAITDEG = [
+    54, # CUT
+    54, # ANTICUT
+    54, # AX_CUT1
+    54, # AX_CUT2
+    54, # AX_PARTCUT1
+    54, # AX_PARTCUT2
+    54, # AX_ANTICUT1
+    54, # AX_ANTICUT2
+    54, # AXAX_CUT
+    54, # AXAX_PARTCUT
+    54  # AXAX_ANTICUT
+]
+HALF_EXTRA = 54
+HOT_CORR = 0
+SINGLE_ADJ_PRE = 9./4.
+SINGLE_ADJ_NXT = 9./4.
 
 class Motor:
+
+    HOT_TIME = .1
 
     SINGLE_DEGS = [0, 90, 180, -180, -90]
     DOUBLE_DEGS = [0, -54, -108, 108, 54]
@@ -116,8 +82,20 @@ class Motor:
         self.double = double
         self.degs = Motor.DOUBLE_DEGS if double else Motor.SINGLE_DEGS
 
-    def move_cmd(self, count):
-        return rot_cmd(self.ports, self.degs[count])
+        self.last_moved = 0
+        self.active = 0
+
+    def degrees(self, count):
+        deg = self.degs[count] 
+        if not self.is_hot():
+            self.active = 0
+        deg += self.active
+        self.last_moved = time.time()
+        self.active = deg
+        return deg
+
+    def is_hot(self):
+        return time.time() - self.last_move < Motor.HOT_TIME
 
 class Robot:
 
@@ -137,40 +115,19 @@ class Robot:
         self.bricks = [
             ev3.EV3(protocol='Usb', host=Robot.HOST0), ev3.EV3(protocol='Usb', host=Robot.HOST1)
         ]
+
+    def move(self, move, ret_after):
+        if not is_axial(move):
+            motor = Robot.FACE_TO_MOTOR[move // 3]
+            deg = motor.degrees(move % 3)
+            return
+
+        # TODO: otherwise things get much more difficultt
     
     def is_double(self, move):
         if is_axial(move):
             move = move[0] # axial moves always have the same gearing
         return Robot.FACE_TO_MOTOR[move // 3].double
-
-    def move(self, m, delay):
-        if is_axial(m): # axial move
-            m1, m2 = m
-            motor1 = Robot.FACE_TO_MOTOR[m1 // 3]
-            motor2 = Robot.FACE_TO_MOTOR[m2 // 3]
-
-            # Optimization when exactly one of the two moves is a half-turn; note that this works
-            # because faces involved in an axial move always have the same gearing
-            if is_half(m1) != is_half(m2):
-                if is_half(m2):
-                    m1, m2 = (m2, m1)
-                    motor1, motor2 = (motor2, motor1)
-                self.bricks[motor1.brick].send_direct_cmd(motor1.move_cmd(Robot.COUNT[m1 % 3]))
-                time.sleep(AX_DOUBLE_OPT)
-                self.bricks[motor2.brick].send_direct_cmd(motor2.move_cmd(Robot.COUNT[m2 % 3]))
-                time.sleep(delay - AX_DOUBLE_OPT - 0.001) # extra transmission delay
-                return
-
-            # Axial moves always happen on the same brick
-            self.bricks[motor1.brick].send_direct_cmd(
-                motor1.move_cmd(Robot.COUNT[m1 % 3]) + motor2.move_cmd(Robot.COUNT[m2 % 3])
-            )
-            time.sleep(delay)
-            return
-         
-        motor = Robot.FACE_TO_MOTOR[m // 3]
-        self.bricks[motor.brick].send_direct_cmd(motor.move_cmd(Robot.COUNT[m % 3])) 
-        time.sleep(delay)
 
     def execute(self, sol):
         if len(sol) == 0:
@@ -185,20 +142,19 @@ class Robot:
             else:
                 sol1.append(sol[i])
                 i += 1
-        print(len(sol1), sol1)
 
-        for i in range(len(sol1)):
-            if i < len(sol1) - 1:
-                delay = DELAY[(
-                    self.is_double(sol1[i]), self.is_double(sol1[i + 1]), cut(sol1[i], sol1[i + 1])
-                )]
-            else:
-                delay = END_DELAY
-            
+        for i in range(len(sol1) - 1):
+            waitdeg = CUT_WAITDEG[cut(sol1[i], sol1[i + 1])]
             if is_half(sol1[i]):
-                delay += HALF_PENALTY2 if self.is_double(sol1[i]) else HALF_PENALTY1
+                waitdeg += HALF_EXTRA
+            if not is_double(sol1[i + 1]):
+                waitdeg *= SINGLE_ADJ_PRE
+            elif not is_double(sol1[i + 1]):
+                waitdeg *= SINGLE_ADJ_NXT
             
-            tick = time.time()
-            self.move(sol1[i], delay)
+            tick = time.time()  
+            self.move(sol1[i], waitdeg)
             print(time.time() - tick)
+
+    
 

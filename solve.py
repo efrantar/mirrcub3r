@@ -2,7 +2,8 @@ from subprocess import Popen, PIPE
 import time
 
 N_THREADS = 12 # number of threads to use for solving
-TIME = 25 # solving time in milliseconds
+SOLVE_TIME = 25 # solving time in milliseconds
+SCRAMBLE_TIME = 50 # scrambling time may be higher
 
 # This is the move-order used by the solver
 NAME_TO_MOVE = {m: i for i, m in enumerate([
@@ -72,10 +73,17 @@ class Solver:
         self.proc.terminate()
 
     def solve(self, facecube):
-        self.proc.stdin.write(('%s -1 %d\n' % (facecube, TIME)).encode())
+        self.proc.stdin.write(('solve %s -1 %d\n' % (facecube, SOLVE_TIME)).encode())
         self.proc.stdin.flush() # command needs to be received instantly
         sol = self.proc.stdout.readline().decode()[:-1] # strip trailing '\n'
         self.proc.stdout.readline() # clear time taken message
         self.proc.stdout.readline() # clear "Ready!" message 
         return convert_sol(sol) if 'Error' not in sol else None
+
+    def scramble(self):
+        self.proc.stdin.write(('scramble %d\n' % SCRAMBLE_TIME).encode())
+        self.proc.stdin.flush()
+        scramble = self.proc.stdout.readline().decode()[:-1]
+        self.proc.stdout.readline() # clear "Ready!" message
+        return convert_sol(scramble) # scrambling will never fail
 
