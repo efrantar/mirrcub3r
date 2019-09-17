@@ -17,47 +17,23 @@ SEQ3 = [3, 12, 1, 5, 13, 1, 10, 5, 6, 0, 11, 14, 9, 12, 11, 13, 0, 3, 2, 11, 3, 
 robot = Robot()
 print('Connected.')
 
-robot.execute(moves("D L F"))
-exit(0)
-
-if False:
-    tick = time.time()
-    # robot.execute(moves("L D R U F L D R U F L D R U F L D R U F"))
-    # robot.execute(moves("L2 D2 R2 U2 F2 L2 D2 R2 U2 F2"))
-    # robot.execute(moves("L D' R U' F L' D R' U F' L D' R U' F L' D R' U F'"))
-    print(time.time() - tick)
-    exit()
-
-# for _ in range(5):
-#    time.sleep(.5)
-    # robot.execute(moves("D L'"))
-#    robot.execute(moves("R L"))
-
-# robot.execute(moves("D L' D L' D L' D L' D L'"))
-
-# robot.execute(moves("L D' L D' L D' L D' L D'"))
-# robot.execute(moves("L' F' L' F' L' F' L' F' L' F'"))
-
 tick = time.time()
-robot.execute(SEQ1)
+
+robot.execute(SEQ2)
+
+# robot.execute(moves("D L' U R' F D' L U' R F'"))
+# robot.execute(moves("D L U R F D L U R F"))
+# robot.execute(moves("D' R L U' R L D' R L U'"))
+# robot.execute(moves("D R' L U R L' D R' L U R L'"))
+# robot.execute(moves("D R L U R L D R L U R L D"))
+# robot.execute(moves("U D R' L' U D R' L' U D R' L'"))
+# robot.execute(moves("U D R' L U D R L' U D R' L"))
+# robot.execute(moves("U D R L U D R L U D R L"))
+
+# robot.execute(moves("D2 L2 U2 R2 F2 D2 L2 U2 R2 F2"))
+# robot.execute(moves("U2 D2 R2 L2 U2 D2 R2 L2"))
+# robot.execute(moves("U D2 R2 L U2 D R L2"))
+
+
 print(time.time() - tick)
-
-# CUT 
-# robot.execute(moves("L D' R U' F L' D R' U F' L D' R U' F L' D R' U F'"))
-# ANTICUT
-# robot.execute(moves("L D R U F L D R U F L D R U F L D R U F"))
-# AX_CUT
-# robot.execute(moves("L R U' L R F' L R D' L R U' L R F' L R"))
-# AX_PARTCUT
-# robot.execute(moves("L R' U L R' F L R' D"))
-# AX_ANTICUT
-# robot.execute(moves("L R U L R F L R D"))
-# AXAX_CUT
-# robot.execute(moves("L R U' D' L R U' D' L R U' D' L R"))
-# AXAX_PARTCUT
-# robot.execute(moves("L R' U D' L R' U D' L R' U D' L R'"))
-# AXAX_ANTICUT
-# robot.execute(moves("L R U D L R U D L R U D L R U D L R"))
-
-#  print(time.time() - tick)
 

@@ -31,8 +31,14 @@ with Solver() as solver:
 
     while True:
         print('Ready.')
+
         # robot.wait_for_press()
         input()
+        tick = time.time()
+        robot.execute(solver.scramble())
+        print(time.time() - tick)
+        continue
+
         frame = cam.frame()
         start = time.time()
 

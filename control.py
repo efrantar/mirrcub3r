@@ -1,3 +1,4 @@
+from cmd import *
 import time
 import ev3
 
@@ -51,51 +52,78 @@ def cut(m1, m2):
         return AX_CUT2 if clock1 != is_clock(m2) else AX_ANTICUT2
     return AX_PARTCUT2
 
+# TODO: tune seriously
 CUT_WAITDEG = [
-    54, # CUT
-    54, # ANTICUT
-    54, # AX_CUT1
-    54, # AX_CUT2
-    54, # AX_PARTCUT1
-    54, # AX_PARTCUT2
-    54, # AX_ANTICUT1
-    54, # AX_ANTICUT2
-    54, # AXAX_CUT
-    54, # AXAX_PARTCUT
-    54  # AXAX_ANTICUT
+    27, # CUT
+    27, # ANTICUT
+    27, # AX_CUT1
+    27, # AX_CUT2
+    27, # AX_PARTCUT1
+    27, # AX_PARTCUT2
+    27, # AX_ANTICUT1
+    27, # AX_ANTICUT2
+    27, # AXAX_CUT
+    27, # AXAX_PARTCUT
+    27  # AXAX_ANTICUT
 ]
-HALF_EXTRA = 54
-HOT_CORR = 0
-SINGLE_ADJ_PRE = 9./4.
-SINGLE_ADJ_NXT = 9./4.
+HALF_EXTRA = 41
+HOT_CORR = 0 # TODO
+SINGLE_ADJ_PRE = 40./24.
+SINGLE_ADJ_NXT = 1.
 
 class Motor:
 
-    HOT_TIME = .1
+    HOT_TIME = .05 # TODO: tune
 
     SINGLE_DEGS = [0, 90, 180, -180, -90]
     DOUBLE_DEGS = [0, -54, -108, 108, 54]
 
-    def __init__(self, brick, ports, double):
+    def __init__(self, brick, ports):
         self.brick = brick
         self.ports = ports
-        self.double = double
-        self.degs = Motor.DOUBLE_DEGS if double else Motor.SINGLE_DEGS
+        self.double = (ports & (ports - 1)) != 0
+        self.degs = Motor.DOUBLE_DEGS if self.double else Motor.SINGLE_DEGS
 
-        self.last_moved = 0
-        self.active = 0
+        self.starttime = 0
+        self.turning = 0
 
     def degrees(self, count):
         deg = self.degs[count] 
         if not self.is_hot():
-            self.active = 0
-        deg += self.active
-        self.last_moved = time.time()
-        self.active = deg
+            self.turning = 0
+        deg += self.turning
+        self.starttime = time.time()
+        self.turning = deg
         return deg
 
     def is_hot(self):
-        return time.time() - self.last_move < Motor.HOT_TIME
+        return time.time() - self.starttime < Motor.HOT_TIME
+
+# TODO: hot adjustment
+# TODO: figure out optimal turning directions for half-turns
+
+def move(motor, count, waitdeg):
+    deg = motor.degrees(count)
+    rotate(
+        motor.brick, motor.ports, deg, waitdeg if waitdeg > 0 else abs(deg) - 5
+    )
+
+# TODO: move with worse corner cutting should be the one we wait for
+def move1(motor1, motor2, count1, count2, waitdeg):
+    deg1 = motor1.degrees(count1)
+    deg2 = motor2.degrees(count2)
+    if waitdeg <= 0:
+        waitdeg = max(deg1, deg2) - 5
+    if (abs(count1) == 2) != (abs(count2) == 2):
+        if abs(count2) == 2:
+            motor1, motor2 = motor2, motor1
+            deg1, deg2 = deg2, deg1
+        rotate2(
+            motor1.brick, motor1.ports, motor2.ports, deg1, deg2,
+            15 if motor1.double else 25, waitdeg # at this point any corner-cutting should be over
+        )
+    else:
+        rotate1(motor1.brick, motor1.ports, motor2.ports, deg1, deg2, waitdeg)
 
 class Robot:
 
@@ -104,26 +132,20 @@ class Robot:
 
     COUNT = [-1, -2, 1]
     FACE_TO_MOTOR = [
-        Motor(0, ev3.PORT_A, False),
-        Motor(1, ev3.PORT_C + ev3.PORT_D, True),
-        Motor(0, ev3.PORT_B + ev3.PORT_C, True),
-        Motor(0, ev3.PORT_D, False),
-        Motor(1, ev3.PORT_A + ev3.PORT_B, True)
-    ] 
+        Motor(0, ev3.PORT_A),
+        Motor(1, ev3.PORT_C + ev3.PORT_D),
+        Motor(0, ev3.PORT_B + ev3.PORT_C),
+        Motor(0, ev3.PORT_D),
+        Motor(1, ev3.PORT_A + ev3.PORT_B)
+    ]
 
     def __init__(self):
         self.bricks = [
             ev3.EV3(protocol='Usb', host=Robot.HOST0), ev3.EV3(protocol='Usb', host=Robot.HOST1)
         ]
+        for m in Robot.FACE_TO_MOTOR:
+            m.brick = self.bricks[m.brick]
 
-    def move(self, move, ret_after):
-        if not is_axial(move):
-            motor = Robot.FACE_TO_MOTOR[move // 3]
-            deg = motor.degrees(move % 3)
-            return
-
-        # TODO: otherwise things get much more difficultt
-    
     def is_double(self, move):
         if is_axial(move):
             move = move[0] # axial moves always have the same gearing
@@ -142,19 +164,30 @@ class Robot:
             else:
                 sol1.append(sol[i])
                 i += 1
+        print(len(sol1), sol1)
 
-        for i in range(len(sol1) - 1):
-            waitdeg = CUT_WAITDEG[cut(sol1[i], sol1[i + 1])]
-            if is_half(sol1[i]):
-                waitdeg += HALF_EXTRA
-            if not is_double(sol1[i + 1]):
-                waitdeg *= SINGLE_ADJ_PRE
-            elif not is_double(sol1[i + 1]):
-                waitdeg *= SINGLE_ADJ_NXT
-            
-            tick = time.time()  
-            self.move(sol1[i], waitdeg)
-            print(time.time() - tick)
+        for i in range(len(sol1)):
+            if i < len(sol1) - 1:
+                waitdeg = CUT_WAITDEG[cut(sol1[i], sol1[i + 1])]
+                if is_half(sol1[i]):
+                    waitdeg += HALF_EXTRA
+                if not self.is_double(sol1[i]) and self.is_double(sol1[i + 1]):
+                    waitdeg *= SINGLE_ADJ_PRE
+                if self.is_double(sol1[i]) and not self.is_double(sol1[i + 1]):
+                    waitdeg *= SINGLE_ADJ_NXT
+            else:
+                waitdeg = -1            
+            waitdeg = int(waitdeg)
 
-    
+            tick = time.time()
+            if is_axial(sol1[i]):
+                m1, m2 = sol1[i]
+                move1(
+                    Robot.FACE_TO_MOTOR[m1 // 3], Robot.FACE_TO_MOTOR[m2 // 3], 
+                    Robot.COUNT[m1 % 3], Robot.COUNT[m2 % 3], 
+                    waitdeg
+                )
+            else:
+                move(Robot.FACE_TO_MOTOR[sol1[i] // 3], Robot.COUNT[sol1[i] % 3], waitdeg)
+            print(waitdeg, time.time() - tick)
 

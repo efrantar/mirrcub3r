@@ -38,21 +38,26 @@ def cmd_waitdeg_wait(deg, waitport, tarvar, waitvar):
         ev3.LCX(-9)
     ])
 
-def rotate(brick, ports, deg, waitport, waitdeg):
+def some_port(ports):
+    return 1 << ((ports & -ports).bit_length() - 1)
+
+def rotate(brick, ports, deg, waitdeg):
+    waitport = some_port(ports)
     cmd = cmd_waitdeg_target(deg, waitport, waitdeg, 0)
     cmd += cmd_rotate(ports, deg)
     cmd += cmd_waitdeg_wait(deg, waitport, 0, 4)
     brick.send_direct_cmd(cmd, global_mem=8)
 
-# `waitport` should be in `ports2`
-def rotate1(brick, ports1, ports2, deg1, deg2, waitport, waitdeg):
-    cmd = cmd_waitdeg_target(deg1, waitport, waitdeg, 0)
+def rotate1(brick, ports1, ports2, deg1, deg2, waitdeg):
+    waitport = some_port(ports2)
+    cmd = cmd_waitdeg_target(deg2, waitport, waitdeg, 0)
     cmd += cmd_rotate(ports1, deg1)
     cmd += cmd_rotate(ports2, deg2)
     cmd += cmd_waitdeg_wait(deg2, waitport, 0, 4)
     brick.send_direct_cmd(cmd, global_mem=8)
 
-def rotate2(brick, ports1, ports2, deg1, deg2, waitport, waitdeg1, waitdeg2):
+def rotate2(brick, ports1, ports2, deg1, deg2, waitdeg1, waitdeg2):
+    waitport = some_port(ports1)
     cmd = cmd_waitdeg_target(deg1, waitport, waitdeg1, 0)
     cmd += cmd_waitdeg_target(deg1, waitport, waitdeg2, 4)
     cmd += cmd_rotate(ports1, deg1)
@@ -78,10 +83,32 @@ if __name__ == '__main__':
     brick1 = ev3.EV3(protocol='Usb', host='00:16:53:40:CE:B6')
     brick2 = ev3.EV3(protocol='Usb', host='00:16:53:4A:BA:BA')
 
-    tick = time.time()
-    # rotate(brick2, ev3.PORT_A + ev3.PORT_B + ev3.PORT_C + ev3.PORT_D, 54, ev3.PORT_A, 18)
-    rotate(brick2, ev3.PORT_A + ev3.PORT_B, 54, ev3.PORT_A, 14)
-    print(time.time() - tick)
-    rotate(brick1, ev3.PORT_B + ev3.PORT_C, 54, ev3.PORT_B, 27)
-    # rotate(brick1, ev3.PORT_A + ev3.PORT_D, 90, ev3.PORT_A, 45)
+    # rotate2(brick2, ev3.PORT_A + ev3.PORT_B, ev3.PORT_C + ev3.PORT_D, 108, 54, 18, 81)
+    # rotate1(brick1, ev3.PORT_A, ev3.PORT_D, 90, 90, 45)
+    # exit()
+
+    # tick = time.time()
+    # rotate1(brick2, ev3.PORT_A + ev3.PORT_B, ev3.PORT_C + ev3.PORT_D, 54, 54, 18)
+    # print(time.time() - tick)
+    # tick = time.time()
+    # rotate1(brick1, ev3.PORT_A, ev3.PORT_D, 90, 90, 45)
+    # print(time.time() - tick)
+    # tick = time.time()
+    # rotate1(brick2, ev3.PORT_A + ev3.PORT_B, ev3.PORT_C + ev3.PORT_D, 54, 54, 18)
+    # print(time.time() - tick)
+    # exit()
+
+    tick1 = time.time()
+    for i in range(7):
+        tick = time.time()
+        rotate(brick2, ev3.PORT_A + ev3.PORT_B, 54, 12)
+        print(time.time() - tick)
+        tick = time.time()
+        rotate(brick1, ev3.PORT_B + ev3.PORT_C, 54, 12)
+        print(time.time() - tick)
+        tick = time.time()
+        rotate(brick2, ev3.PORT_C + ev3.PORT_D, 54, 12)
+        print(time.time() - tick)
+        
+    print(time.time() - tick1)
 
