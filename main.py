@@ -29,15 +29,18 @@ with Solver() as solver:
     cam = IpCam(CAM_URL)
     print('Scanner set up.')
 
+    print('Ready.') # we don't want to print this again and again while waiting for button presses
     while True:
-        print('Ready.')
-
-        # robot.wait_for_press()
-        input()
-        tick = time.time()
-        robot.execute(solver.scramble())
-        print(time.time() - tick)
-        continue
+        time.sleep(.05) # 50ms should be sufficient for a smooth experience
+        if robot.scramble_pressed():
+            scramble = solver.scramble()
+            start = time.time()
+            robot.execute(scramble)
+            print('Scrambled! %fs' % (time.time() - start))
+            continue
+        elif not robot.solve_pressed():
+            continue
+        # Now actually start solving
 
         frame = cam.frame()
         start = time.time()
@@ -54,7 +57,8 @@ with Solver() as solver:
         if sol is not None:
             print('Executing ...')
             robot.execute(sol)
-            print('Done! %fs' % (time.time() - start))
+            print('Solved! %fs' % (time.time() - start))
         else:
             print('Error.')
+        print('Ready.')
 

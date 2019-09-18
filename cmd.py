@@ -75,7 +75,7 @@ def is_pressed(brick, port):
         ev3.LCX(0),
         ev3.GVX(0) 
     ])
-    return struct.unpack('<b', brick.send_direct_cmd(cmd, global_mem=1)[5:]) > 0
+    return struct.unpack('<b', brick.send_direct_cmd(cmd, global_mem=1)[5:])[0] > 0
 
 if __name__ == '__main__':
     import time

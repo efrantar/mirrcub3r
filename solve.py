@@ -28,32 +28,53 @@ def convert_sol(sol):
     splits1 = []
     i = 0
     while i < len(splits):
-        if axial[i] and i < len(splits) - 2:
-            if axial[i + 2]: # `splits[i + 3]` must exist
-                if splits[i] == splits[i + 2] and splits[i + 1] == splits[i + 3]:
-                    splits1.append('%s2' % splits[i][:1])
-                    splits1.append('%s2' % splits[i + 1][:1])
-                    i += 4
+        if axial[i]:
+            if i < len(splits) - 2:
+                if axial[i + 2]: # `splits[i + 3]` must exist
+                    if splits[i] == splits[i + 2] and splits[i + 1] == splits[i + 3]:
+                        splits1.append('%s2' % splits[i][:1])
+                        splits1.append('%s2' % splits[i + 1][:1])
+                        i += 4
+                    else:
+                        splits1 += splits[i:(i + 2)]
+                        i += 2
                 else:
-                    splits1 += splits[i:(i + 2)]
-                    i += 2
+                    if splits[i] == splits[i + 2]:
+                        splits1.append('%s2' % splits[i][:1])
+                        splits1.append(splits[i + 1])
+                        i += 3
+                    elif i < len(splits) - 3 and splits[i + 1] == splits[i + 2]:
+                        splits1.append(splits[i])
+                        splits1.append('%s2' % splits[i + 1][:1])
+                        i += 3
+                    else:
+                        splits1 += splits[i:(i + 2)]
+                        i += 2
             else:
-                if splits[i] == splits[i + 2]:
-                    splits1.append('%s2' % splits[i][:1])
-                    splits1.append(splits[i + 1])
-                    i += 3
-                elif i < len(splits) - 3 and splits[i + 1] == splits[i + 2]:
-                    splits1.append(splits[i])
-                    splits1.append('%s2' % splits[i + 1][:1])
-                    i += 3
-                else:
-                    splits1 += splits[i:(i + 2)]
-                    i += 2
-        else:
-            if i < len(splits) - 1 and splits[i] == splits[i + 1]:
-                # We will never get into here if `axial[i + 1]`
-                splits1.append(splits[i][:1] + '2')
+                splits1 += splits[i:(i+2)]
                 i += 2
+        else:
+            if i < len(splits) - 1:
+                if axial[i + 1]: # `splits[i + 2]` must exist
+                    # We will never have to merge both moves before and after into an axial one
+                    if splits[i] == splits[i + 1]:
+                        splits1.append('%s2' % splits[i + 1][:1])
+                        splits1.append(splits[i + 2])
+                        i += 3
+                    elif splits[i] == splits[i + 2]:
+                        splits1.append(splits[i + 1])
+                        splits1.append('%s2' % splits[i + 2][:1])
+                        i += 3
+                    else:
+                        splits1.append(splits[i])
+                        i += 1
+                else:
+                    if splits[i] == splits[i + 1]:
+                        splits1.append(splits[i][:1] + '2')
+                        i += 2
+                    else:
+                        splits1.append(splits[i])
+                        i += 1
             else:
                 splits1.append(splits[i])
                 i += 1

@@ -73,7 +73,7 @@ SINGLE_ADJ_NXT = 1.
 
 class Motor:
 
-    HOT_TIME = .05 # TODO: tune
+    HOT_TIME = .025 # TODO: tune
 
     SINGLE_DEGS = [0, 90, 180, -180, -90]
     DOUBLE_DEGS = [0, -54, -108, 108, 54]
@@ -190,4 +190,10 @@ class Robot:
             else:
                 move(Robot.FACE_TO_MOTOR[sol1[i] // 3], Robot.COUNT[sol1[i] % 3], waitdeg)
             print(waitdeg, time.time() - tick)
+
+    def solve_pressed(self):
+        return is_pressed(self.bricks[1], 3) # Tight button
+
+    def scramble_pressed(self):
+        return is_pressed(self.bricks[0], 0) # Left button
 
