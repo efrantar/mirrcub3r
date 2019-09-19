@@ -28,53 +28,79 @@ AXAX_CUT = 8
 AXAX_PARTCUT = 9
 AXAX_ANTICUT = 10
 
-def cut(m1, m2):
-    if not is_axial(m1) and is_axial(m2):
-        return cut(m2, m1) - 1
+def cut(m1, m2, inverted=False):
+    if is_axial(m1) and not is_axial(m2):
+        return cut(m2, m1, inverted=True) + 1
     if is_axial(m1) and is_axial(m2):
         return AXAX_CUT + (max(cut(m1, m2[0]), cut(m1, m2[1])) // 2 - 1)
-
-    if not is_axial(m1):
+    
+    if not is_axial(m2):
         return CUT if is_clock(m1) != is_clock(m2) else ANTICUT
+    
+    m21, m22 = m2
+    clock1 = is_clock(m21)
+    clock2 = is_clock(m22)
 
-    m11, m12 = m1
-    clock1 = is_clock(m11)
-    clock2 = is_clock(m12)
-
-    if is_half(m11):
-        if not is_half(m12):
-            return CUT if clock1 != is_clock(m2) else ANTICUT
-    else:
-        if is_half(m12):
-            return CUT if clock2 != is_clock(m2) else ANTICUT
+    # Note that a special axial move only yields a simple incoming cut but not
+    # an outcoming one
+    if not inverted:
+        if is_half(m21):
+            if not is_half(m22):
+                return CUT if clock1 != is_clock(m1) else ANTICUT
+        else:
+            if is_half(m22):
+                return CUT if clock2 != is_clock(m1) else ANTICUT
 
     if clock1 == clock2:
-        return AX_CUT2 if clock1 != is_clock(m2) else AX_ANTICUT2
-    return AX_PARTCUT2
+        return AX_CUT1 if clock1 != is_clock(m1) else AX_ANTICUT1
+    return AX_PARTCUT1
 
-# TODO: tune seriously
-CUT_WAITDEG = [
-    27, # CUT
-    27, # ANTICUT
-    27, # AX_CUT1
-    27, # AX_CUT2
-    27, # AX_PARTCUT1
-    27, # AX_PARTCUT2
-    27, # AX_ANTICUT1
-    27, # AX_ANTICUT2
-    27, # AXAX_CUT
-    27, # AXAX_PARTCUT
-    27  # AXAX_ANTICUT
-]
-HALF_EXTRA = 41
-HOT_CORR = 0 # TODO
-SINGLE_ADJ_PRE = 40./24.
-SINGLE_ADJ_NXT = 1.
+WAITDEG = {}
+
+WAITDEG[(False, True, CUT)] = 45 # 45
+WAITDEG[(True, False, CUT)] = 27 # 20
+WAITDEG[(True, True, CUT)] = 27 # 18
+WAITDEG[(False, True, ANTICUT)] = 45 # 40
+WAITDEG[(True, False, ANTICUT)] = 27 # 18
+WAITDEG[(True, True, ANTICUT)] = 27 # 16
+
+WAITDEG[(False, True, AX_CUT1)] = 45 # 45
+WAITDEG[(True, False, AX_CUT1)] = 27 # 22
+WAITDEG[(True, True, AX_CUT1)] = 27 # 24
+WAITDEG[(False, True, AX_CUT2)] = 45 # 45
+WAITDEG[(True, False, AX_CUT2)] = 27 # 24
+WAITDEG[(True, True, AX_CUT2)] = 27 # 24
+WAITDEG[(False, True, AX_PARTCUT1)] = 45 # 45
+WAITDEG[(True, False, AX_PARTCUT1)] = 27 # 20
+WAITDEG[(True, True, AX_PARTCUT1)] = 27 # 22
+WAITDEG[(False, True, AX_PARTCUT2)] = 45 # 45
+WAITDEG[(True, False, AX_PARTCUT2)] = 27 # 24
+WAITDEG[(True, True, AX_PARTCUT2)] = 27 # 24
+WAITDEG[(False, True, AX_ANTICUT1)] = 45 # 40
+WAITDEG[(True, False, AX_ANTICUT1)] = 27 # 18
+WAITDEG[(True, True, AX_ANTICUT1)] = 27 # 22
+WAITDEG[(False, True, AX_ANTICUT2)] = 45 # 50 # we get annoying hotness problems with lower values here
+WAITDEG[(True, False, AX_ANTICUT2)] = 27 # 24
+WAITDEG[(True, True, AX_ANTICUT2)] = 27 # 24
+
+WAITDEG[(False, True, AXAX_CUT)] = 45 # 45
+WAITDEG[(True, False, AXAX_CUT)] = 27 # 27
+WAITDEG[(False, True, AXAX_PARTCUT)] = 45 # 45
+WAITDEG[(True, False, AXAX_PARTCUT)] = 27 # 27
+WAITDEG[(False, True, AXAX_ANTICUT)] = 45 # 35
+WAITDEG[(True, False, AXAX_ANTICUT)] = 27 # 27 # hotness again ...
+
+WAITDEG_HALF1 = 70
+WAITDEG_HALF2 = 41 
+NOT_EARLY = 15 # to make sure we never deadlock with the final move
+SPECIAL_AX_WAITDEG1 = 25
+SPECIAL_AX_WAITDEG2 = 15
 
 class Motor:
 
-    HOT_TIME = .025 # TODO: tune
-
+    # TODO: this should be sufficient for now
+    HOT_TIMES = [.000, .025, .050]
+    
     SINGLE_DEGS = [0, 90, 180, -180, -90]
     DOUBLE_DEGS = [0, -54, -108, 108, 54]
 
@@ -84,46 +110,57 @@ class Motor:
         self.double = (ports & (ports - 1)) != 0
         self.degs = Motor.DOUBLE_DEGS if self.double else Motor.SINGLE_DEGS
 
-        self.starttime = 0
+        self.endtime = 0
         self.turning = 0
+        self.prev_count = 0
 
     def degrees(self, count):
-        deg = self.degs[count] 
-        if not self.is_hot():
-            self.turning = 0
-        deg += self.turning
-        self.starttime = time.time()
-        self.turning = deg
-        return deg
+        return self.degs[count]
 
     def is_hot(self):
-        return time.time() - self.starttime < Motor.HOT_TIME
+        return time.time() - self.endtime < Motor.HOT_TIMES[self.prev_count]     
 
-# TODO: hot adjustment
-# TODO: figure out optimal turning directions for half-turns
+    def begin(self, count):
+        deg = self.degrees(count)
+        if not self.is_hot():
+            self.turning = 0
+        else:
+            print('Hot')
+        deg += self.turning
+        self.turning = deg
+        self.prev_count = abs(count)
+        return deg
+
+    def end(self):
+        self.endtime = time.time()
 
 def move(motor, count, waitdeg):
-    deg = motor.degrees(count)
+    deg = motor.begin(count)
     rotate(
-        motor.brick, motor.ports, deg, waitdeg if waitdeg > 0 else abs(deg) - 5
+        motor.brick, motor.ports, deg,
+        waitdeg if waitdeg > 0 else abs(motor.degrees(count)) - NOT_EARLY
     )
+    motor.end()
 
-# TODO: move with worse corner cutting should be the one we wait for
+# TODO: actually we want to wait for the move with worse corner cutting
 def move1(motor1, motor2, count1, count2, waitdeg):
-    deg1 = motor1.degrees(count1)
-    deg2 = motor2.degrees(count2)
+    deg1 = motor1.begin(count1)
+    deg2 = motor2.begin(count2)
     if waitdeg <= 0:
-        waitdeg = max(deg1, deg2) - 5
+        waitdeg = max(abs(motor1.degrees(count1)), abs(motor2.degrees(count2))) - NOT_EARLY
     if (abs(count1) == 2) != (abs(count2) == 2):
+        print('2')
         if abs(count2) == 2:
             motor1, motor2 = motor2, motor1
             deg1, deg2 = deg2, deg1
         rotate2(
             motor1.brick, motor1.ports, motor2.ports, deg1, deg2,
-            15 if motor1.double else 25, waitdeg # at this point any corner-cutting should be over
+            SPECIAL_AX_WAITDEG2 if motor1.double else SPECIAL_AX_WAITDEG1, waitdeg
         )
     else:
         rotate1(motor1.brick, motor1.ports, motor2.ports, deg1, deg2, waitdeg)
+    motor1.end()
+    motor2.end()
 
 class Robot:
 
@@ -168,16 +205,12 @@ class Robot:
 
         for i in range(len(sol1)):
             if i < len(sol1) - 1:
-                waitdeg = CUT_WAITDEG[cut(sol1[i], sol1[i + 1])]
+                print(sol1[i], cut(sol1[i], sol1[i + 1]))
+                waitdeg = WAITDEG[self.is_double(sol1[i]), self.is_double(sol1[i + 1]), cut(sol1[i], sol1[i + 1])]
                 if is_half(sol1[i]):
-                    waitdeg += HALF_EXTRA
-                if not self.is_double(sol1[i]) and self.is_double(sol1[i + 1]):
-                    waitdeg *= SINGLE_ADJ_PRE
-                if self.is_double(sol1[i]) and not self.is_double(sol1[i + 1]):
-                    waitdeg *= SINGLE_ADJ_NXT
+                    waitdeg += WAITDEG_HALF2 if self.is_double(sol1[i]) else WAITDEG_HALF1
             else:
-                waitdeg = -1            
-            waitdeg = int(waitdeg)
+                waitdeg = -1
 
             tick = time.time()
             if is_axial(sol1[i]):

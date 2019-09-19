@@ -19,21 +19,29 @@ print('Connected.')
 
 tick = time.time()
 
-robot.execute(SEQ2)
+robot.execute(SEQ3)
 
-# robot.execute(moves("D L' U R' F D' L U' R F'"))
-# robot.execute(moves("D L U R F D L U R F"))
-# robot.execute(moves("D' R L U' R L D' R L U'"))
-# robot.execute(moves("D R' L U R L' D R' L U R L'"))
-# robot.execute(moves("D R L U R L D R L U R L D"))
+# robot.execute(moves("D L' U R' F D' L U' R F' D L' U R' F D' L U' R F'"))
+# robot.execute(moves("D L U R F D L U R F D L U R F D L U R F"))
+# robot.execute(moves("D L' U R F' D' L U' R F D' L U' R' F D L' U R' F'"))
+
+# robot.execute(moves("D' R L U' R L F' R L D' R L U'"))
+# robot.execute(moves("U D R' U D L'"))
+
+# robot.execute(moves("D R' L U R' L F R L' D R L' U R' L F R L'"))
+# robot.execute(moves("R D U' L D' U R D U' L D' U"))
+
+# robot.execute(moves("D R L U R L F R L D R L U R L F R L"))
+# robot.execute(moves("L U D R U D F U D L"))
+
 # robot.execute(moves("U D R' L' U D R' L' U D R' L'"))
-# robot.execute(moves("U D R' L U D R L' U D R' L"))
+# robot.execute(moves("U D R' L U D' R L' U D R' L"))
 # robot.execute(moves("U D R L U D R L U D R L"))
 
 # robot.execute(moves("D2 L2 U2 R2 F2 D2 L2 U2 R2 F2"))
 # robot.execute(moves("U2 D2 R2 L2 U2 D2 R2 L2"))
 # robot.execute(moves("U D2 R2 L U2 D R L2"))
-
+# robot.execute(moves("U2 D L D U2 F' R2 L U"))
 
 print(time.time() - tick)
 

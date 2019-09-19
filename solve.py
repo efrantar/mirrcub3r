@@ -20,8 +20,6 @@ def convert_sol(sol):
     splits = sol.replace('(', '').replace(')', '').split(' ')
     axial = [('(' in m) for m in sol.split(' ')] # where axial moves start
 
-    print(sol)
-
     # Perform the merging; note that we will never have to match a simple quarter turn
     # with a consecutive axial turn or a simple quarter turn with a non-adjacent simple 
     # quarter-turn as such solutions are never returned by the solver
@@ -79,8 +77,6 @@ def convert_sol(sol):
                 splits1.append(splits[i])
                 i += 1
 
-    print(splits1)
-
     return [NAME_TO_MOVE[m] for m in splits1] # finally convert names to move IDs
 
 # Simple Python interface to the interactive mode of the "twophase" solver
@@ -111,8 +107,4 @@ class Solver:
         scramble = self.proc.stdout.readline().decode()[:-1]
         self.proc.stdout.readline() # clear "Ready!" message
         return convert_sol(scramble) # scrambling will never fail
-
-if __name__ == '__main__':
-    with Solver() as solver:
-        print(solver.scramble())
 

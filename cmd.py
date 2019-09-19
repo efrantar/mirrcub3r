@@ -77,38 +77,3 @@ def is_pressed(brick, port):
     ])
     return struct.unpack('<b', brick.send_direct_cmd(cmd, global_mem=1)[5:])[0] > 0
 
-if __name__ == '__main__':
-    import time
-    
-    brick1 = ev3.EV3(protocol='Usb', host='00:16:53:40:CE:B6')
-    brick2 = ev3.EV3(protocol='Usb', host='00:16:53:4A:BA:BA')
-
-    # rotate2(brick2, ev3.PORT_A + ev3.PORT_B, ev3.PORT_C + ev3.PORT_D, 108, 54, 18, 81)
-    # rotate1(brick1, ev3.PORT_A, ev3.PORT_D, 90, 90, 45)
-    # exit()
-
-    # tick = time.time()
-    # rotate1(brick2, ev3.PORT_A + ev3.PORT_B, ev3.PORT_C + ev3.PORT_D, 54, 54, 18)
-    # print(time.time() - tick)
-    # tick = time.time()
-    # rotate1(brick1, ev3.PORT_A, ev3.PORT_D, 90, 90, 45)
-    # print(time.time() - tick)
-    # tick = time.time()
-    # rotate1(brick2, ev3.PORT_A + ev3.PORT_B, ev3.PORT_C + ev3.PORT_D, 54, 54, 18)
-    # print(time.time() - tick)
-    # exit()
-
-    tick1 = time.time()
-    for i in range(7):
-        tick = time.time()
-        rotate(brick2, ev3.PORT_A + ev3.PORT_B, 54, 12)
-        print(time.time() - tick)
-        tick = time.time()
-        rotate(brick1, ev3.PORT_B + ev3.PORT_C, 54, 12)
-        print(time.time() - tick)
-        tick = time.time()
-        rotate(brick2, ev3.PORT_C + ev3.PORT_D, 54, 12)
-        print(time.time() - tick)
-        
-    print(time.time() - tick1)
-
