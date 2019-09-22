@@ -32,6 +32,7 @@ class CubeScanner:
             mask = np.zeros((HEIGHT, WIDTH), dtype=np.uint8)
             for j in np.where(order == i)[0]:
                 cv2.fillPoly(mask, np.array([polys[j]], dtype=np.int32), 255)
+                cv2.imwrite('masks/%d.jpg' % i, mask)
             if np.sum(order == i) > 0: # don't store masks for positions we don't scan
                 # Since almost all pixels are 0, it is faster to access the non-zero ones via their index
                 self.masks[i] = np.where(mask > 0)
@@ -41,18 +42,32 @@ class CubeScanner:
        
         # Make sure that invalid positions have values that will never bother us in any calculations
         scans = np.tile(np.array([[-1, 255, 0]]), (N_STICKERS, 1))
+        scans1 = np.tile(np.array([[-1, 255, 0]]), (N_STICKERS, 1))
         for i in range(N_STICKERS):
             if self.masks[i] is not None:
                 # Faster to convert only the relevant pixels to HSV
-                tmp = cv2.cvtColor(np.expand_dims(image[self.masks[i]], 0), cv2.COLOR_BGR2HSV) # input needs to be 3D
+                tmp = cv2.cvtColor(np.expand_dims(image[self.masks[i]], 0), cv2.COLOR_BGR2Lab) # input needs to be 3D
                 # Rotate circular hue space such that red always has low values
-                tmp[:, :, 0] = (tmp[:, :, 0] + 30) % 180
+                tmp1 = np.median(np.expand_dims(image[self.masks[i]], 0), axis=(0, 1))[::-1]
+                scans1[i, :] = tmp1 
                 scans[i, :] = np.median(tmp, axis=(0, 1)) # median for better robustness
+
+        import matplotlib.pyplot as plt
+        from matplotlib.colors import hsv_to_rgb
+
+        for i in range(len(scans)):
+            if scans[i, 0] >= 0:
+                plt.plot(i, scans[i, 0], 'o', color=scans1[i, :] / 255)
+        plt.xlabel('a')
+        plt.ylabel('b')
+        plt.savefig('test.png')
 
         # White has low value and high saturation
         tmp = 1./2. * scans[:, 1] + 1./2. * (255 - scans[:, 2])
         asc_hue = np.argsort(scans[:, 0])[(N_STICKERS - 6 * self.n_percol):] # drop invalid positions
         asc_hue = asc_hue[~np.in1d(asc_hue, np.argsort(tmp)[:self.n_percol])] # drop white
+
+        print(scans[asc_hue, :])
  
         for i in range(0, len(asc_hue), self.n_percol):
             colors[asc_hue[i:(i + self.n_percol)]] = i // self.n_percol + 1
@@ -67,9 +82,9 @@ if __name__ == '__main__':
         order[i] += order[i] // 8 + int(order[i] % 8 >= 4)
 
     cam = IpCam('http://192.168.178.25:8080/shot.jpg')
-    image = cam.frame()
-    cv2.imwrite('check.jpg', image)
-    # image = cv2.imread('ok1.jpg')
+    # image = cam.frame()
+    # cv2.imwrite('check.jpg', image)
+    image = cv2.imread('check.jpg')
 
     import time
     scanner = CubeScanner(points, order, 8)

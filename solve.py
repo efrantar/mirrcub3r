@@ -88,7 +88,7 @@ class Solver:
         )
         while 'Ready!' not in self.proc.stdout.readline().decode():
             pass # wait for everything to boot up
-        return self # `__enter__` must retrun reference to initialized object
+        return self # `__enter__` must return reference to initialized object
 
     def __exit__(self, exception_type, exception_value, traceback):
         self.proc.terminate()
@@ -97,6 +97,7 @@ class Solver:
         self.proc.stdin.write(('solve %s -1 %d\n' % (facecube, SOLVE_TIME)).encode())
         self.proc.stdin.flush() # command needs to be received instantly
         sol = self.proc.stdout.readline().decode()[:-1] # strip trailing '\n'
+        print(sol)
         self.proc.stdout.readline() # clear time taken message
         self.proc.stdout.readline() # clear "Ready!" message 
         return convert_sol(sol) if 'Error' not in sol else None
