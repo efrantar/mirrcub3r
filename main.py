@@ -20,14 +20,11 @@ with Solver() as solver:
     robot = Robot()
     print('Connected to robot.')
 
-    points, order = pickle.load(open('scan-setup.pkl', 'rb'))
-    order = np.array([i for i, _ in order])
-    for i in range(len(order)):
-        order[i] += order[i] // 8 + int(order[i] % 8 >= 4)
-    scanner = CubeScanner(points, order, 8)
-
+    points = np.array(pickle.load(open('scan-pos.pkl', 'rb')))
+    extractor = ColorExtractor(points, 10)
+    matcher = ColorMatcher()
     cam = IpCam(CAM_URL)
-    print('Scanner set up.')
+    print('Scanning set up.')
 
     print('Ready.') # we don't want to print this again and again while waiting for button presses
     while True:
@@ -44,13 +41,9 @@ with Solver() as solver:
 
         frame = cam.frame()
         start = time.time()
-
         print('Scanning ...')
-        colors = scanner.scan(frame)
-        for f in range(6):
-            colors[9 * f + 4] = SCAN_ORDER[f]
-        facecube = ''.join([SCAN_COLOR[c] for c in colors])
-
+        scans = extractor.extract_bgrs(frame)
+        facecube = matcher.match(scans)
         print('Solving ...')
         sol = solver.solve(facecube)
 

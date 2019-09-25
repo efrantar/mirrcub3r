@@ -67,10 +67,9 @@ for c in list(CORNER_TWISTS):
     CORNER_TWISTS.add((c[1], c[2], c[0]))
     CORNER_TWISTS.add((c[2], c[0], c[1]))
 
+CENTERS = [4, 13, 22, 31, 40, 49]
 BOTTOM_FACE = [i for i in range(18, 27)]
 
-def dist(lab1, lab2):
-    return np.sum((lab1[1:] - lab2[1:]) ** 2)
 
 def remove(l, e):
     try:
@@ -79,14 +78,11 @@ def remove(l, e):
         pass
 
 
-Assignment = namedtuple('Assignment', ['facelet', 'col'])
-
 class ColorMatcher:
 
-    def __init__(self, baselines):
-        self.baselines = baselines
+    HUE_SHIFT = 30
 
-    def match(self, scans, csched):
+    def match(self, bgrs):
         self.facecube = [NO_COL] * N_FACELETS
         for i in range(6):
             self.facecube[9 * i + 4] = i
@@ -105,43 +101,70 @@ class ColorMatcher:
         self.cavail = copy.deepcopy(self.eavail)
         self.cavail_part = copy.deepcopy(self.eavail_part)
 
-        target = 0
-        matched = 0
-        for colors in csched:
-            target += len(colors) * 9
-            matched += len(colors)
-            heap = []
+        hsvs = cv2.cvtColor(np.expand_dims(bgrs, 0), cv2.COLOR_BGR2HSV)[0, :, :]
+        print(hsvs)
+        hsvs[:, 0] = (hsvs[:, 0] + ColorMatcher.HUE_SHIFT) % 180
+        print(hsvs)
+        by_hue = [f for f in np.argsort(hsvs[:, 0]) if f not in CENTERS]
+        by_sat = [f for f in np.argsort(hsvs[:, 1]) if f not in CENTERS]
+        by_val = [f for f in np.argsort(hsvs[:, 2]) if f not in CENTERS]
 
-            for i in range(N_FACELETS):
-                for col in colors:
-                    heap.append((dist(scans[i, :], self.baselines[col]), Assignment(i, col)))
+        print(by_sat)
 
-            heapify(heap)
-            while matched < target:
-                if len(heap) == 0:
-                    return ''
-                _, ass = heappop(heap)
-                cubie = FACELET_TO_CUBIE[ass.facelet]
+        # Find white facelets
+        whites = []
+        for f in by_sat:
+            if f not in by_hue[-8:] and f not in by_val[:8]:
+                self.assign(f, L)
+                whites.append(f)
+            if len(whites) == 8:
+                break
+        by_hue = np.array([i for i in by_hue if i not in whites])
+ 
+        # Assign blue
+        for f in by_hue[-8:]:
+            self.assign(f, U)
 
-                if self.facecube[ass.facelet] != NO_COL:
-                    continue
-                if (ass.facelet % 9) % 2 == 1: # edge
-                    if ass.col not in self.edge_cols(cubie):
-                        print('elim_edge', ass.facelet, ass.col)
-                        continue
-                    self.assign_edge(ass.facelet, ass.col)            
-                else: # corner
-                    if ass.col not in self.corner_cols(cubie):
-                        print('elim_corner', ass.facelet, ass.col)
-                        continue    
-                    self.assign_corner(ass.facelet, ass.col)
-                matched += 1
+        # Assign green and yellow
+        for i in range(8):
+            f = by_hue[16 + i]
+            if not self.assign(f, R):
+                self.assign(f, D)
+            f = by_hue[31 - i]
+            if not self.assign(f, D):
+                self.assign(f, R)
+
+        # Assign red and orange
+        for i in range(8):
+            f = by_hue[i]
+            if not self.assign(f, F):
+                self.assign(f, B)
+            f = by_hue[15 - i]
+            if not self.assign(f, B):
+                self.assign(f, F)
 
         return ''.join([COL_NAMES[c] for c in self.facecube])
 
-    def assign_edge(self, facelet, col):
-        print('assign_edge', facelet, ['blue', 'yellow', 'red', 'green', 'white', 'orange'][col])
+    def assign(self, facelet, col):
+        if self.facecube[facelet] != NO_COL:
+            return True
 
+        cubie = FACELET_TO_CUBIE[facelet]
+        if (facelet % 9) % 2 == 1:
+            if col not in self.edge_cols(cubie):
+                print('elim', facelet, ['blue', 'yellow', 'red', 'green', 'white', 'orange'][col])
+                return False
+            self.assign_edge(facelet, col)
+        else:
+            if col not in self.corner_cols(cubie):
+                print('elim', facelet, ['blue', 'yellow', 'red', 'green', 'white', 'orange'][col])
+                return False
+            self.assign_corner(facelet, col)
+        
+        print('assign', facelet, ['blue', 'yellow', 'red', 'green', 'white', 'orange'][col])
+        return True
+
+    def assign_edge(self, facelet, col):
         edge = FACELET_TO_CUBIE[facelet]
         self.ecols[edge][FACELET_TO_POS[facelet]]
 
@@ -157,8 +180,6 @@ class ColorMatcher:
         self.facecube[facelet] = col
 
     def assign_corner(self, facelet, col):
-        print('assign_corner', facelet, ['blue', 'yellow', 'red', 'green', 'white', 'orange'][col])
-
         corner = FACELET_TO_CUBIE[facelet]
         self.ccols[corner][FACELET_TO_POS[facelet]]
 
@@ -212,23 +233,14 @@ class ColorExtractor:
         self.points = points
         self.size = size
 
-    def extract_rgb(self, image):
+    def extract_bgrs(self, image):
         d = self.size // 2
-        scans = np.zeros((points.shape[0], 3), dtype=np.float)
-        for i in range(points.shape[0]):
+        scans = np.zeros((self.points.shape[0], 3), dtype=np.uint8)
+        for i in range(self.points.shape[0]):
             x, y = self.points[i]
             tmp = image[(y - d):(y + d), (x - d):(x + d), :]
-            scans[i, :] = np.median(tmp, axis=(0, 1))[::-1]
-        return scans / 255.
-
-    def extract_lab(self, image):
-        d = self.size // 2
-        scans = np.zeros((points.shape[0], 3), dtype=np.float)
-        for i in range(points.shape[0]):
-            x, y = self.points[i]
-            tmp = cv2.cvtColor(image[(y - d):(y + d), (x - d):(x + d), :], cv2.COLOR_BGR2Lab)
             scans[i, :] = np.median(tmp, axis=(0, 1))
-        return scans / 255.
+        return scans
 
 
 class IpCam:
@@ -247,51 +259,38 @@ if __name__ == '__main__':
     import pickle
     points = np.array(pickle.load(open('scan-pos.pkl', 'rb')))
    
-    # cam = IpCam('http://192.168.178.25:8080/shot.jpg')
-    # image = cam.frame()
-    # cv2.imwrite('check.jpg', image)
+    cam = IpCam('http://192.168.178.25:8080/shot.jpg')
+    image = cam.frame()
+    cv2.imwrite('check.jpg', image)
  
     extractor = ColorExtractor(points, 10)
     image = cv2.imread('scan.jpg')
-    import time
-    tick = time.time()
-    scans = extractor.extract_lab(image)
+    scans = extractor.extract_bgrs(image)
 
-    rgbs = extractor.extract_rgb(image)
-    labs = extractor.extract_lab(image)
-
-    import matplotlib.pyplot as plt
-    for i in range(N_FACELETS):
-        plt.plot(labs[i, 1], labs[i, 2], 'o', color=rgbs[i, :])
-    plt.plot(labs[20, 1], labs[20, 2], 'o', color='pink')
-    plt.xlabel('a')
-    plt.ylabel('b')
-    plt.savefig('test.png')
-
+    hsvs = cv2.cvtColor(np.expand_dims(scans, 0), cv2.COLOR_BGR2HSV)[0, :, :]
     from mpl_toolkits.mplot3d import Axes3D 
     import matplotlib.pyplot as plt
     from matplotlib.colors import hsv_to_rgb
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
     for i in range(N_FACELETS):
+        if i in CENTERS:
+            continue
         ax.scatter(
-            labs[i, 0], labs[i, 1], labs[i, 2], marker='o', 
-            color=rgbs[i, :]
+            hsvs[i, 0], hsvs[i, 1], hsvs[i, 2], marker='o', 
+            color=scans[i, ::-1] / 255
         )
-    ax.set_xlabel('L')
-    ax.set_ylabel('a')
-    ax.set_zlabel('b')
+#    ax.scatter(hsvs[0, 0], hsvs[0, 0], hsvs[0, 0], marker='o', color='pink')
+    ax.set_xlabel('H')
+    ax.set_ylabel('S')
+    ax.set_zlabel('V')
     plt.show()
 
-    matcher = ColorMatcher(np.array([
-        [0, .55, .4], # blue
-        [0, .475, .7], # yellow
-        [0, .625, .55], # red
-        [0, .325, .625], # green
-        [0, .475, .525], # white
-        [0, .675, .675] # orange
-    ]))
-    facecube = matcher.match(scans, [[U, R, D, L], [F, B]])
+    matcher = ColorMatcher()
+    import time
+    tick = time.time()
+    scans = extractor.extract_bgrs(image)
+    facecube = matcher.match(scans)
     print(facecube)
     print(time.time() - tick)
     if facecube == '':
