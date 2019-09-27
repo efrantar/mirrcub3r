@@ -1,3 +1,6 @@
+# Main program controlling the robot; not much is happening here, we just use call the appropriate
+# tools implemented in the other files.
+
 import pickle
 import subprocess
 import threading
@@ -9,10 +12,8 @@ from control import *
 from scan import *
 from solve import *
 
+# Fortunately, this seems to stay rather consistent
 CAM_URL = 'http://192.168.178.25:8080/shot.jpg'
-
-SCAN_ORDER = [5, 3, 1, 4, 0, 2]
-SCAN_COLOR = ['L', 'F', 'B', 'R', 'D', 'U']
 
 with Solver() as solver:
     print('Solver initialized.')
@@ -27,7 +28,7 @@ with Solver() as solver:
     print('Scanning set up.')
 
     print('Ready.') # we don't want to print this again and again while waiting for button presses
-    while True:
+    while True: # polling is the most straight-forward way to check both buttons at once
         time.sleep(.05) # 50ms should be sufficient for a smooth experience
         if robot.scramble_pressed():
             scramble = solver.scramble()
@@ -40,6 +41,10 @@ with Solver() as solver:
         # Now actually start solving
 
         frame = cam.frame()
+        # TODO: We start timing only after we have received a frame from the camera and processing starts.
+        # While this might not be 100% conform to the Guiness World Record rules, I am (at least at this point)
+        # not interested in optimizing the camera latency as I do not think this should be an integral part
+        # of a cube-solving robot.
         start = time.time()
         print('Scanning ...')
         scans = extractor.extract_bgrs(frame)
