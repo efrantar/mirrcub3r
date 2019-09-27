@@ -1,3 +1,6 @@
+# Minimal utility for setting up the scan-positions.
+# It is rather primitive and not at all user-friendly yet it gets the job done decently enough.
+
 import os
 import pickle
 import cv2

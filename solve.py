@@ -1,28 +1,30 @@
+# This file handles computing actual solutions by interfacing with the C++ solver.
+
 from subprocess import Popen, PIPE
 import time
 
-N_THREADS = 12 # number of threads to use for solving
-SOLVE_TIME = 25 # solving time in milliseconds
-SCRAMBLE_TIME = 50 # scrambling time may be higher
+N_THREADS = 12
+SOLVE_TIME = 25
+SCRAMBLE_TIME = 50 # we don't care too much about speed when scrambling
 
-# This is the move-order used by the solver
+# The robot's move order, actually different from the solver's
 NAME_TO_MOVE = {m: i for i, m in enumerate([
     "U", "U2", "U'", "R", "R2", "R'", "F", "F2", "F'", 
     "D", "D2", "D'", "L", "L2", "L'"
 ])}
 
-# Transforms a solution string returned from the solver into a sequence of moves to be executed 
-# by the robot. This includes conversion of move names into IDs and merging of consecutive
-# quarter-turns (also axial ones) into half-turns.
+# TODO: There is still some small ~1/100 "blemish" in the solver where we get solutions like 
+# (U D) U' due to not applying any move restrictions in the phase 2 transistions. This causes 
+# trouble for our robot but we will handle this on the solver level at a later time.
+# TODO: Make the merging a solver feature in general (i.e. with a "-c" option).
+
+# Convert string solution to move IDs and merge consecutive quarter-turns (also axial ones)  to half-turns
 def convert_sol(sol):
-    if sol == '': # catch easy case to avoid any trouble below
+    if sol == '':
         return []
     splits = sol.replace('(', '').replace(')', '').split(' ')
     axial = [('(' in m) for m in sol.split(' ')] # where axial moves start
 
-    # Perform the merging; note that we will never have to match a simple quarter turn
-    # with a consecutive axial turn or a simple quarter turn with a non-adjacent simple 
-    # quarter-turn as such solutions are never returned by the solver
     splits1 = []
     i = 0
     while i < len(splits):
@@ -41,7 +43,7 @@ def convert_sol(sol):
                         splits1.append('%s2' % splits[i][:1])
                         splits1.append(splits[i + 1])
                         i += 3
-                    elif i < len(splits) - 3 and splits[i + 1] == splits[i + 2]:
+                    elif splits[i + 1] == splits[i + 2]:
                         splits1.append(splits[i])
                         splits1.append('%s2' % splits[i + 1][:1])
                         i += 3
@@ -88,7 +90,7 @@ class Solver:
         )
         while 'Ready!' not in self.proc.stdout.readline().decode():
             pass # wait for everything to boot up
-        return self # `__enter__` must return reference to initialized object
+        return self
 
     def __exit__(self, exception_type, exception_value, traceback):
         self.proc.terminate()
@@ -97,7 +99,7 @@ class Solver:
         self.proc.stdin.write(('solve %s -1 %d\n' % (facecube, SOLVE_TIME)).encode())
         self.proc.stdin.flush() # command needs to be received instantly
         sol = self.proc.stdout.readline().decode()[:-1] # strip trailing '\n'
-        print(sol)
+        print(sol) # TODO: here for debugging purposes
         self.proc.stdout.readline() # clear time taken message
         self.proc.stdout.readline() # clear "Ready!" message 
         return convert_sol(sol) if 'Error' not in sol else None
@@ -106,6 +108,11 @@ class Solver:
         self.proc.stdin.write(('scramble %d\n' % SCRAMBLE_TIME).encode())
         self.proc.stdin.flush()
         scramble = self.proc.stdout.readline().decode()[:-1]
-        self.proc.stdout.readline() # clear "Ready!" message
+        self.proc.stdout.readline() # "Ready!"
+        print(scramble)
         return convert_sol(scramble) # scrambling will never fail
+
+if __name__ == '__main__':
+    with Solver() as solver:
+        print(solver.scramble())
 

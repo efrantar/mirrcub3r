@@ -1,3 +1,5 @@
+# Script used for testing the robot's moveset.
+
 from control import *
 import time
 
@@ -19,7 +21,7 @@ print('Connected.')
 
 tick = time.time()
 
-robot.execute(SEQ3)
+# robot.execute(SEQ)
 
 # robot.execute(moves("D L' U R' F D' L U' R F' D L' U R' F D' L U' R F'"))
 # robot.execute(moves("D L U R F D L U R F D L U R F D L U R F"))

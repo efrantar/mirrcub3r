@@ -3,6 +3,8 @@ __pycache__
 *.pyc
 
 scans
+res
 twophase
 twophase.tbl
+scan.jpg
 

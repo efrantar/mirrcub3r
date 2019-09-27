@@ -102,14 +102,10 @@ class ColorMatcher:
         self.cavail_part = copy.deepcopy(self.eavail_part)
 
         hsvs = cv2.cvtColor(np.expand_dims(bgrs, 0), cv2.COLOR_BGR2HSV)[0, :, :]
-        print(hsvs)
         hsvs[:, 0] = (hsvs[:, 0] + ColorMatcher.HUE_SHIFT) % 180
-        print(hsvs)
         by_hue = [f for f in np.argsort(hsvs[:, 0]) if f not in CENTERS]
         by_sat = [f for f in np.argsort(hsvs[:, 1]) if f not in CENTERS]
         by_val = [f for f in np.argsort(hsvs[:, 2]) if f not in CENTERS]
-
-        print(by_sat)
 
         # Find white facelets
         whites = []
@@ -152,16 +148,16 @@ class ColorMatcher:
         cubie = FACELET_TO_CUBIE[facelet]
         if (facelet % 9) % 2 == 1:
             if col not in self.edge_cols(cubie):
-                print('elim', facelet, ['blue', 'yellow', 'red', 'green', 'white', 'orange'][col])
+                # print('elim', facelet, ['blue', 'yellow', 'red', 'green', 'white', 'orange'][col])
                 return False
             self.assign_edge(facelet, col)
         else:
             if col not in self.corner_cols(cubie):
-                print('elim', facelet, ['blue', 'yellow', 'red', 'green', 'white', 'orange'][col])
+                # print('elim', facelet, ['blue', 'yellow', 'red', 'green', 'white', 'orange'][col])
                 return False
             self.assign_corner(facelet, col)
         
-        print('assign', facelet, ['blue', 'yellow', 'red', 'green', 'white', 'orange'][col])
+        # print('assign', facelet, ['blue', 'yellow', 'red', 'green', 'white', 'orange'][col])
         return True
 
     def assign_edge(self, facelet, col):
@@ -261,7 +257,7 @@ if __name__ == '__main__':
    
     cam = IpCam('http://192.168.178.25:8080/shot.jpg')
     image = cam.frame()
-    cv2.imwrite('check.jpg', image)
+    cv2.imwrite('scan.jpg', image)
  
     extractor = ColorExtractor(points, 10)
     image = cv2.imread('scan.jpg')
@@ -280,7 +276,6 @@ if __name__ == '__main__':
             hsvs[i, 0], hsvs[i, 1], hsvs[i, 2], marker='o', 
             color=scans[i, ::-1] / 255
         )
-#    ax.scatter(hsvs[0, 0], hsvs[0, 0], hsvs[0, 0], marker='o', color='pink')
     ax.set_xlabel('H')
     ax.set_ylabel('S')
     ax.set_zlabel('V')
