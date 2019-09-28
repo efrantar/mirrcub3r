@@ -42,6 +42,8 @@ FL = 9
 BL = 10
 BR = 11
 
+COLORS = ['blue', 'yellow', 'red', 'green', 'white', 'orange']
+
 FACELET_TO_CUBIE = [
     ULB, UB, UBR, UL, -1, UR, UFL, UF, URF,
     URF, UR, UBR, FR, -1, BR, DFR, DR, DRB,
@@ -148,16 +150,16 @@ class ColorMatcher:
         cubie = FACELET_TO_CUBIE[facelet]
         if (facelet % 9) % 2 == 1:
             if col not in self.edge_cols(cubie):
-                # print('elim', facelet, ['blue', 'yellow', 'red', 'green', 'white', 'orange'][col])
+                # print('elim', facelet, COLORS[col])
                 return False
             self.assign_edge(facelet, col)
         else:
             if col not in self.corner_cols(cubie):
-                # print('elim', facelet, ['blue', 'yellow', 'red', 'green', 'white', 'orange'][col])
+                # print('elim', facelet, COLORS[col])
                 return False
             self.assign_corner(facelet, col)
         
-        # print('assign', facelet, ['blue', 'yellow', 'red', 'green', 'white', 'orange'][col])
+        # print('assign', facelet, COLORS[col])
         return True
 
     def assign_edge(self, facelet, col):

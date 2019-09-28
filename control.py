@@ -93,13 +93,13 @@ WAITDEG[(True, False, AXAX_ANTICUT)] = 27 # 27 # hotness again ...
 WAITDEG_HALF1 = 70
 WAITDEG_HALF2 = 41 
 NOT_EARLY = 15 # to make sure we never deadlock with the final move
-SPECIAL_AX_WAITDEG1 = 25
-SPECIAL_AX_WAITDEG2 = 15
+SPECIAL_AX_WAITDEG1 = 10
+SPECIAL_AX_WAITDEG2 = 5
 
 class Motor:
 
     # TODO: this should be sufficient for now
-    HOT_TIMES = [.000, .025, .050]
+    HOT_TIMES = [.000, .025, .045]
     
     SINGLE_DEGS = [0, 90, 180, -180, -90]
     DOUBLE_DEGS = [0, -54, -108, 108, 54]
