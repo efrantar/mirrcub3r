@@ -1,3 +1,5 @@
+# This file implements the color recognition.
+
 from collections import namedtuple
 import copy
 import cv2
@@ -9,6 +11,9 @@ N_COLORS = 6
 N_EDGES = 12
 N_CORNERS = 8
 N_FACELETS = 54
+
+# To do the constraint matching we have to repeat several defintions from
+# C++ solving algorithm here.
 
 NO_COL = -1
 U = 0
@@ -44,6 +49,7 @@ BR = 11
 
 COLORS = ['blue', 'yellow', 'red', 'green', 'white', 'orange']
 
+# Map a facelet to the cubie it is on
 FACELET_TO_CUBIE = [
     ULB, UB, UBR, UL, -1, UR, UFL, UF, URF,
     URF, UR, UBR, FR, -1, BR, DFR, DR, DRB,
@@ -52,6 +58,7 @@ FACELET_TO_CUBIE = [
     ULB, UL, UFL, BL, -1, FL, DBL, DL, DLF,
     UBR, UB, ULB, BR, -1, BL, DRB, DB, DBL 
 ]
+# Map a facelet to the position within its cubie
 FACELET_TO_POS = [
     0, 0, 0, 0, -1, 0, 0, 0, 0,
     1, 1, 2, 1, -1, 1, 2, 1, 1,
@@ -61,6 +68,7 @@ FACELET_TO_POS = [
     1, 1, 2, 0, -1, 0, 2, 1, 1
 ]
 
+# Generate all possible twisted configurations of the corners
 CORNER_TWISTS = {
     (U, R, F), (U, F, L), (U, L, B), (U, B, R),
     (D, F, R), (D, L, F), (D, B, L), (D, R, B)
@@ -73,6 +81,7 @@ CENTERS = [4, 13, 22, 31, 40, 49]
 BOTTOM_FACE = [i for i in range(18, 27)]
 
 
+# `remove()` that does not throw if the element does not exist
 def remove(l, e):
     try:
         l.remove(e)
@@ -80,46 +89,65 @@ def remove(l, e):
         pass
 
 
+# Matches the scanned BGR-values to cube colors.
+
+# Getting this to work at least somewhat decently with the robot's mirrors is extremely tricky
+# as there are varying viewing angles and lighting conditions depending on which exactly
+# facelet we are trying to match. Thus most usually very effective conventional
+# methods (i.e. clustering, matching to reference values while considering constraints, etc.)
+# unfortunately do not seem to work. We resort here to a combination of constraint matching
+# and HSV sorting with some additional rather ad-hoc tricks. While this method is certainly
+# not the most elegant, it seems to be surprisingly robust and works much better than
+# anything else we have tried.
 class ColorMatcher:
 
+    # Due to the hue-space being circular red can have both very high and very low values.
+    # To avoid any problems caused by this we simply shift the space by 30 degrees.
     HUE_SHIFT = 30
 
     def match(self, bgrs):
         self.facecube = [NO_COL] * N_FACELETS
-        for i in range(6):
+        for i in range(6): # hard-code the center-facelets as they are locked for our robot
             self.facecube[9 * i + 4] = i
         self.ecols = [[NO_COL] * 2 for _ in range(N_EDGES)]
         self.ccols = [[NO_COL] * 3 for _ in range(N_CORNERS)]
 
         self.eavail = [U, R, F, D, L, B] * 4
         self.eavail_part = [
-            {R, L, F, B},
-            {B, F, U, D},
-            {U, D, R, L},
-            {R, L, F, B},
-            {U, D, F, B},
-            {U, D, R, L}
+            [R, L, F, B],
+            [B, F, U, D],
+            [U, D, R, L],
+            [R, L, F, B],
+            [U, D, F, B],
+            [U, D, R, L]
         ]
         self.cavail = copy.deepcopy(self.eavail)
-        self.cavail_part = copy.deepcopy(self.eavail_part)
+        self.cavail_part = [avail * 2 for avail in self.eavail_part]
 
         hsvs = cv2.cvtColor(np.expand_dims(bgrs, 0), cv2.COLOR_BGR2HSV)[0, :, :]
         hsvs[:, 0] = (hsvs[:, 0] + ColorMatcher.HUE_SHIFT) % 180
+        # Note that the input also contains scans for the centers to make indexing more
+        # straight-forward but we don't want them to confuse the color matching and thus filter
+        # them out at this point.
         by_hue = [f for f in np.argsort(hsvs[:, 0]) if f not in CENTERS]
         by_sat = [f for f in np.argsort(hsvs[:, 1]) if f not in CENTERS]
         by_val = [f for f in np.argsort(hsvs[:, 2]) if f not in CENTERS]
 
-        # Find white facelets
+        # The whole process highly depends on us correctly matching all white facelets a priori
         whites = []
-        for f in by_sat:
+        for f in by_sat: # white is recognized by a low saturation value
+            # The most common incorrect assignments happen with a blue scan (high hue) or some
+            # other very dark color (low val), just filtering those out seems to make finding the 
+            # white facelets surprising consitent.
             if f not in by_hue[-8:] and f not in by_val[:8]:
                 self.assign(f, L)
                 whites.append(f)
             if len(whites) == 8:
                 break
+        # Now proceed white the hue ordering of all remaining colors
         by_hue = np.array([i for i in by_hue if i not in whites])
  
-        # Assign blue
+        # Assign blue; this is typically very consitent we should not be making any errors here
         for f in by_hue[-8:]:
             self.assign(f, U)
 
@@ -132,7 +160,10 @@ class ColorMatcher:
             if not self.assign(f, D):
                 self.assign(f, R)
 
-        # Assign red and orange
+        # Finally match red and orange; a few errors are quite common here, however they can
+        # usually be corrected by the constraints imposed via all the previously matched colors;
+        # Note also that we assign from outside to in, i.e. the most distinct colors first and
+        # easiest to confuse ones last
         for i in range(8):
             f = by_hue[i]
             if not self.assign(f, F):
@@ -148,7 +179,7 @@ class ColorMatcher:
             return True
 
         cubie = FACELET_TO_CUBIE[facelet]
-        if (facelet % 9) % 2 == 1:
+        if (facelet % 9) % 2 == 1: # is on an edge
             if col not in self.edge_cols(cubie):
                 # print('elim', facelet, COLORS[col])
                 return False
@@ -167,13 +198,13 @@ class ColorMatcher:
         self.ecols[edge][FACELET_TO_POS[facelet]]
 
         remove(self.eavail, col)
-        if col not in self.eavail:
+        if col not in self.eavail: # maximum number of edge facelets with a color reached
             for e in range(N_COLORS):
                 remove(self.eavail_part[e], col)
-        if len([c for c in self.ecols[edge] if c != NO_COL]) == 2:
+        if len([c for c in self.ecols[edge] if c != NO_COL]) == 2: # edge fully assigned
             c1, c2 = self.ecols[edge]
-            remove(self.eavail[c1], c2)
-            remove(self.eavail[c2], c1)
+            remove(self.eavail_part[c1], c2)
+            remove(self.eavail_part[c2], c1)
 
         self.facecube[facelet] = col
 
@@ -182,18 +213,18 @@ class ColorMatcher:
         self.ccols[corner][FACELET_TO_POS[facelet]]
 
         remove(self.cavail, col)
-        if col not in self.cavail:
+        if col not in self.cavail: # maximum corner facelets with some color found
             for c in range(N_COLORS):
                 remove(self.cavail_part[c], col)
-        if len([c for c in self.ccols[corner] if c != NO_COL]) <= 2:
-            for c1 in range(3):
-                if c1 != NO_COL:
-                    for c2 in range(3):
-                        remove(self.cavail_part[c1], c2)
+        for c in range(3): # when we have more than 1 color of a corner
+            if c != NO_COL and c != col:
+                remove(self.cavail_part[col], c)
+                remove(self.cavail_part[c], col)
 
         self.facecube[facelet] = col
 
     def edge_cols(self, edge):
+        # If an edge already has one color simply return its available partners
         if self.ecols[edge][0] != NO_COL:
             return self.eavail_part[self.ecols[edge][0]]
         if self.ecols[edge][1] != NO_COL:
@@ -201,19 +232,19 @@ class ColorMatcher:
         return self.eavail
 
     def corner_cols(self, corner):
-        avail = {}
+        avail = set([c for c in range(N_COLORS)])
         count = 0
         i_missing = -1
         for i, c in enumerate(self.ccols[corner]):
             if c != NO_COL:
-                avail |= self.cavail_part[c]
+                avail &= set(self.cavail_part[c])
                 count += 1
             elif i_missing < 0:
                 i_missing = i
 
         if count == 1:
             return avail
-        if count == 2:
+        if count == 2: # use corner twists to limit the valid colors even more
             avail1 = []
             for c in avail:
                 tmp = copy.copy(self.ccols[corner])
@@ -225,6 +256,7 @@ class ColorMatcher:
         return self.cavail
 
 
+# Extracts average BGR value of small squares around the given scan-points
 class ColorExtractor:
 
     def __init__(self, points, size):
@@ -241,6 +273,7 @@ class ColorExtractor:
         return scans
 
 
+# Very simple interface to fetch an image from the "IPWebCam" app
 class IpCam:
 
     def __init__(self, url):
@@ -253,13 +286,14 @@ class IpCam:
         return frame
 
 
+# Testing/experimentation code (mostly to try out color recognition without having to launch the robot)
 if __name__ == '__main__':
     import pickle
     points = np.array(pickle.load(open('scan-pos.pkl', 'rb')))
    
-    cam = IpCam('http://192.168.178.25:8080/shot.jpg')
-    image = cam.frame()
-    cv2.imwrite('scan.jpg', image)
+    # cam = IpCam('http://192.168.178.25:8080/shot.jpg')
+    # image = cam.frame()
+    # cv2.imwrite('scan.jpg', image)
  
     extractor = ColorExtractor(points, 10)
     image = cv2.imread('scan.jpg')

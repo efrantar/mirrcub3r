@@ -1,3 +1,5 @@
+# Robot control.
+
 from cmd import *
 import time
 import ev3
@@ -16,6 +18,7 @@ def is_half(move):
 def is_clock(move):
     return move % 3 <= 1 # TODO: for now all half-turns are considered to be clockwise
 
+# All possible corner cutting situations
 CUT = 0
 ANTICUT = 1
 AX_CUT1 = 2 # simple -> axial
@@ -54,6 +57,15 @@ def cut(m1, m2, inverted=False):
     if clock1 == clock2:
         return AX_CUT1 if clock1 != is_clock(m1) else AX_ANTICUT1
     return AX_PARTCUT1
+
+# Actually the solver supports different tuning values for all corner cutting situtations
+# including the involved motor types (single or double). However, for now this is mostly
+# disabled (i.e. the same values everywhere) since the whole process is very tedious,
+# in particular due to the fact that values for double motors cannot easily be converted
+# into ones for single motors and vice-versa. This yields a huge amount of cases to consider
+# that furthermore cannot easily be tweaked in isolation. Theoretically we can probably
+# squeeze out 100-200ms in exchange for a bit of consistency with this, however we will
+# for now defer this feature to a future iteration of the robot with unfiorm motors.
 
 WAITDEG = {}
 
@@ -96,6 +108,15 @@ NOT_EARLY = 15 # to make sure we never deadlock with the final move
 SPECIAL_AX_WAITDEG1 = 10
 SPECIAL_AX_WAITDEG2 = 5
 
+# One very annoying problem with the robot moveset is that when the same motor
+# is rotated again before its previous move is entirely complete, then the second
+# command simply completes the inital movement rather than performing another move.
+# This may happen for instance in a U R U maneuver if R returns before the U-motor
+# is fully stopped. In such a situation we actually have to perform U2 to get the
+# desired U move. The main purpose of this class is to handle this "hotness".
+# Fortunately, with the current tuning values this will bascially never happen.
+# However, this will certainly become relevant again in a future iteration of the 
+# robot and hence we leave it in.
 class Motor:
 
     # TODO: this should be sufficient for now
@@ -125,7 +146,7 @@ class Motor:
         if not self.is_hot():
             self.turning = 0
         else:
-            print('Hot')
+            print('Hot') # for debugging purposes
         deg += self.turning
         self.turning = deg
         self.prev_count = abs(count)
@@ -142,7 +163,7 @@ def move(motor, count, waitdeg):
     )
     motor.end()
 
-# TODO: actually we want to wait for the move with worse corner cutting
+# TODO: I guess it would be ideal to wait for the move with worse corner cutting?
 def move1(motor1, motor2, count1, count2, waitdeg):
     deg1 = motor1.begin(count1)
     deg2 = motor2.begin(count2)
@@ -167,7 +188,7 @@ class Robot:
     HOST0 = '00:16:53:40:CE:B6'
     HOST1 = '00:16:53:4A:BA:BA'
 
-    COUNT = [-1, -2, 1]
+    COUNT = [-1, -2, 1] # we have to invert directions from the perspective of the motors
     FACE_TO_MOTOR = [
         Motor(0, ev3.PORT_A),
         Motor(1, ev3.PORT_C + ev3.PORT_D),
@@ -225,7 +246,7 @@ class Robot:
             print(waitdeg, time.time() - tick)
 
     def solve_pressed(self):
-        return is_pressed(self.bricks[1], 3) # Tight button
+        return is_pressed(self.bricks[1], 3) # Right button
 
     def scramble_pressed(self):
         return is_pressed(self.bricks[0], 0) # Left button
