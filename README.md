@@ -9,4 +9,4 @@ The robot is built from two Lego Mindstorms EV3s, 8 Medium Motors, many (red) Le
 
 *Note that the code provided here is primarily intended for people interested in the underlying techniques of an extremely fast cube-solver. If you just want built a robot from instructions and run it with fully prewritten software, this is not the right place to look. Furthermore, while version 1.0 of mirrcub3r is now finally complete, I will still be actively working on improving it and thus the contents of this repository are subject to change.*
 
-Sample solves (will be removed once the official video is released): [1.400](https://youtu.be/E7asXTJ8pAY) (decent, not too lucky), [1.686](https://youtu.be/pTgFNbZgjuA) (fairly unlucky), [0.972](https://youtu.be/JhygBTWfFqc) (ultra lucky)
+**Sample solves:** [1.400](https://youtu.be/E7asXTJ8pAY) (decent, not too lucky), [1.686](https://youtu.be/pTgFNbZgjuA) (fairly unlucky), [0.972](https://youtu.be/JhygBTWfFqc) (ultra lucky)
