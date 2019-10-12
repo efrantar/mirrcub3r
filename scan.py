@@ -1,19 +1,20 @@
-# This file implements the color recognition.
-
 from collections import namedtuple
 import copy
-import cv2
 from heapq import *
-import numpy as np
 import urllib.request
+
+import numpy as np
+import cv2
+import scipy.spatial.distance
+
 
 N_COLORS = 6
 N_EDGES = 12
 N_CORNERS = 8
 N_FACELETS = 54
 
-# To do the constraint matching we have to repeat several defintions from
-# C++ solving algorithm here.
+# To do the constraint matching we have to repeat several definitions from the
+# C++ solving algorithm.
 
 NO_COL = -1
 U = 0
@@ -78,10 +79,9 @@ for c in list(CORNER_TWISTS):
     CORNER_TWISTS.add((c[2], c[0], c[1]))
 
 CENTERS = [4, 13, 22, 31, 40, 49]
-BOTTOM_FACE = [i for i in range(18, 27)]
 
 
-# `remove()` that does not throw if the element does not exist
+# `remove()` that does not throw if the element does not exis
 def remove(l, e):
     try:
         l.remove(e)
@@ -89,29 +89,13 @@ def remove(l, e):
         pass
 
 
-# Matches the scanned BGR-values to cube colors.
+class CubeBuilder:
 
-# Getting this to work at least somewhat decently with the robot's mirrors is extremely tricky
-# as there are varying viewing angles and lighting conditions depending on which exactly
-# facelet we are trying to match. Thus most usually very effective conventional
-# methods (i.e. clustering, matching to reference values while considering constraints, etc.)
-# unfortunately do not seem to work. We resort here to a combination of constraint matching
-# and HSV sorting with some additional rather ad-hoc tricks. While this method is certainly
-# not the most elegant, it seems to be surprisingly robust and works much better than
-# anything else we have tried.
-class ColorMatcher:
-
-    # Due to the hue-space being circular red can have both very high and very low values.
-    # To avoid any problems caused by this we simply shift the space by 30 degrees.
-    HUE_SHIFT = 30
-
-    def match(self, bgrs):
-        self.facecube = [NO_COL] * N_FACELETS
-        for i in range(6): # hard-code the center-facelets as they are locked for our robot
-            self.facecube[9 * i + 4] = i
+    def __init__(self):
+        self.colors = [NO_COL] * N_FACELETS
         self.ecols = [[NO_COL] * 2 for _ in range(N_EDGES)]
-        self.ccols = [[NO_COL] * 3 for _ in range(N_CORNERS)]
-
+        self.ccols = [[NO_COL] * 3 for _ in range(N_CORNERS)]       
+ 
         self.eavail = [U, R, F, D, L, B] * 4
         self.eavail_part = [
             [R, L, F, B],
@@ -122,60 +106,10 @@ class ColorMatcher:
             [U, D, R, L]
         ]
         self.cavail = copy.deepcopy(self.eavail)
-        self.cavail_part = [avail * 2 for avail in self.eavail_part]
-
-        hsvs = cv2.cvtColor(np.expand_dims(bgrs, 0), cv2.COLOR_BGR2HSV)[0, :, :]
-        hsvs[:, 0] = (hsvs[:, 0] + ColorMatcher.HUE_SHIFT) % 180
-        # Note that the input also contains scans for the centers to make indexing more
-        # straight-forward but we don't want them to confuse the color matching and thus filter
-        # them out at this point.
-        by_hue = [f for f in np.argsort(hsvs[:, 0]) if f not in CENTERS]
-        by_sat = [f for f in np.argsort(hsvs[:, 1]) if f not in CENTERS]
-        by_val = [f for f in np.argsort(hsvs[:, 2]) if f not in CENTERS]
-
-        # The whole process highly depends on us correctly matching all white facelets a priori
-        whites = []
-        for f in by_sat: # white is recognized by a low saturation value
-            # The most common incorrect assignments happen with a blue scan (high hue) or some
-            # other very dark color (low val), just filtering those out seems to make finding the 
-            # white facelets surprising consitent.
-            if f not in by_hue[-8:] and f not in by_val[:8]:
-                self.assign(f, L)
-                whites.append(f)
-            if len(whites) == 8:
-                break
-        # Now proceed white the hue ordering of all remaining colors
-        by_hue = np.array([i for i in by_hue if i not in whites])
- 
-        # Assign blue; this is typically very consitent we should not be making any errors here
-        for f in by_hue[-8:]:
-            self.assign(f, U)
-
-        # Assign green and yellow
-        for i in range(8):
-            f = by_hue[16 + i]
-            if not self.assign(f, R):
-                self.assign(f, D)
-            f = by_hue[31 - i]
-            if not self.assign(f, D):
-                self.assign(f, R)
-
-        # Finally match red and orange; a few errors are quite common here, however they can
-        # usually be corrected by the constraints imposed via all the previously matched colors;
-        # Note also that we assign from outside to in, i.e. the most distinct colors first and
-        # easiest to confuse ones last
-        for i in range(8):
-            f = by_hue[i]
-            if not self.assign(f, F):
-                self.assign(f, B)
-            f = by_hue[15 - i]
-            if not self.assign(f, B):
-                self.assign(f, F)
-
-        return ''.join([COL_NAMES[c] for c in self.facecube])
+        self.cavail_part = [avail * 2 for avail in self.eavail_part]       
 
     def assign(self, facelet, col):
-        if self.facecube[facelet] != NO_COL:
+        if self.colors[facelet] != NO_COL:
             return True
 
         cubie = FACELET_TO_CUBIE[facelet]
@@ -184,44 +118,35 @@ class ColorMatcher:
                 # print('elim', facelet, COLORS[col])
                 return False
             self.assign_edge(facelet, col)
-        else:
+        elif cubie != -1: # don't go here for centers
             if col not in self.corner_cols(cubie):
                 # print('elim', facelet, COLORS[col])
                 return False
             self.assign_corner(facelet, col)
-        
-        # print('assign', facelet, COLORS[col])
+
+        # print('assign', facelet, COLORS[col]) 
+        self.colors[facelet] = col
         return True
 
     def assign_edge(self, facelet, col):
         edge = FACELET_TO_CUBIE[facelet]
-        self.ecols[edge][FACELET_TO_POS[facelet]]
+        self.ecols[edge][FACELET_TO_POS[facelet]] = col
 
         remove(self.eavail, col)
-        if col not in self.eavail: # maximum number of edge facelets with a color reached
-            for e in range(N_COLORS):
-                remove(self.eavail_part[e], col)
         if len([c for c in self.ecols[edge] if c != NO_COL]) == 2: # edge fully assigned
             c1, c2 = self.ecols[edge]
             remove(self.eavail_part[c1], c2)
             remove(self.eavail_part[c2], c1)
 
-        self.facecube[facelet] = col
-
     def assign_corner(self, facelet, col):
         corner = FACELET_TO_CUBIE[facelet]
-        self.ccols[corner][FACELET_TO_POS[facelet]]
+        self.ccols[corner][FACELET_TO_POS[facelet]] = col
 
         remove(self.cavail, col)
-        if col not in self.cavail: # maximum corner facelets with some color found
-            for c in range(N_COLORS):
-                remove(self.cavail_part[c], col)
-        for c in range(3): # when we have more than 1 color of a corner
+        for c in self.ccols[corner]: # when we have more than 1 color of a corner
             if c != NO_COL and c != col:
                 remove(self.cavail_part[col], c)
                 remove(self.cavail_part[c], col)
-
-        self.facecube[facelet] = col
 
     def edge_cols(self, edge):
         # If an edge already has one color simply return its available partners
@@ -249,14 +174,137 @@ class ColorMatcher:
             for c in avail:
                 tmp = copy.copy(self.ccols[corner])
                 tmp[i_missing] = c
-                if tmp in CORNER_TWISTS:
+                if tuple(tmp) in CORNER_TWISTS:
                     avail1.append(c)
             return avail1
 
         return self.cavail
 
+    def facecube(self):
+        return ''.join([COL_NAMES[c] for c in self.colors])
 
-# Extracts average BGR value of small squares around the given scan-points
+
+# red, orange, yellow, green, blue, red
+HUES = np.array([0, 30, 60, 120, 240, 360]) / 360
+
+def transform(hsv): 
+    i = 1
+    while i < 5:
+        if hsv[0] < HUES[i]:
+            break
+        i += 1
+    tmp1 = .2 * ((i - 1) + (hsv[0] - HUES[i - 1]) / (HUES[i] - HUES[i - 1]))
+    tmp2 = hsv[1] # 1 - (1 - hsv[1]) ** .75
+    return np.array([
+        tmp2 * np.cos(2 * np.pi * tmp1), tmp2 * np.sin(2 * np.pi * tmp1), hsv[2] # hsv[2] * .5
+    ])
+
+def distances(points1, points2):
+    # Much faster than any manual calucaltions
+    return scipy.spatial.distance.cdist(points1, points2, metric='euclidean')    
+
+def kmeans(points, centers):
+    # return centers
+    while True:
+        assigned = np.argmin(distances(points, centers), axis=1)
+        converged = True
+        for i in range(centers.shape[0]):
+            tmp = np.mean(points[assigned == i], axis=0)
+            if (tmp != centers[i]).any():
+                centers[i] = tmp
+                converged = False
+        if converged:
+            return centers
+
+def plot_colors(bgrs, transformed, centers):
+    from mpl_toolkits.mplot3d import Axes3D 
+    import matplotlib.pyplot as plt
+    
+    fig = plt.figure()
+    ax = fig.gca(projection='3d')
+ 
+    angles = np.linspace(0, 2 * np.pi, 1000)
+    ax.plot(np.cos(angles), np.sin(angles), np.ones(angles.size))
+
+    for i in range(bgrs.shape[0]):
+        ax.scatter(
+            transformed[i, 0], transformed[i, 1], transformed[i, 2],
+            marker='o', color=bgrs[i, ::-1] / 255
+        )
+    assigned = np.argmin(distances(transformed, centers), axis=1)
+    for i in range(bgrs.shape[0]):
+        p = transformed[i]
+        c = centers[assigned[i]]
+        ax.plot(
+            [p[0], c[0]], [p[1], c[1]], [p[2], c[2]],
+            color='black'
+        )
+
+    plt.show()
+
+CLUSTERS = np.array([
+    transform([240 / 360, 1, 1]), # blue
+    transform([60 / 360, 1, 1]), # yellow
+    transform([0 / 360, 1, 1]), # red
+    transform([120 / 360, 1, 1]), # green
+    transform([0, 0, 1]), # white
+    transform([30 / 360, 1, 1])  # orange
+])
+
+Assignment = namedtuple('Assignment', ['conf', 'facelet', 'col', 'rank'])
+
+
+class ColorMatcher:
+
+   def match(self, bgrs, fixed_centers=True, debug=False):
+        hsvs = cv2.cvtColor(np.expand_dims(bgrs, 0), cv2.COLOR_BGR2HSV)[0, :, :]
+        hsvs = hsvs.astype(np.float)
+        hsvs[:, 0] /= 180
+        hsvs[:, 1:] /= 255
+        transformed = np.apply_along_axis(transform, 1, hsvs)
+       
+        centers = kmeans(transformed, transformed[CENTERS])
+        if debug:
+            plot_colors(bgrs, transformed, centers)
+
+        cube = CubeBuilder()
+        distm = distances(transformed, centers)
+        order = np.argsort(distm, axis=1)
+        # Duplicate last column to avoid boundary checks
+        order = np.concatenate((order, order[:, -1].reshape(-1, 1)), axis=1)
+
+        assigned = 0
+        if fixed_centers:
+            for c, f in enumerate(CENTERS):
+                cube.assign(f, c)
+            assigned += 6
+
+        heap = []
+        for f in range(N_FACELETS):
+            if fixed_centers and f in CENTERS:
+                continue
+            heap.append(Assignment(
+                distm[f, order[f, 0]] - distm[f, order[f, 1]],
+                f, order[f][0], 0
+            ))
+        heapify(heap)
+
+        while assigned < N_FACELETS:
+            ass = heappop(heap)
+            if not cube.assign(ass.facelet, ass.col):
+                f = ass.facelet
+                i = ass.rank
+                if i == N_COLORS - 1:
+                    return ''
+                heappush(heap, Assignment(
+                    distm[f, order[f, i + 1]] - distm[f, order[f, i + 2]],
+                    f, order[f][i + 1], i + 1 
+                ))
+            else:
+                assigned += 1
+        return cube.facecube()
+
+
 class ColorExtractor:
 
     def __init__(self, points, size):
@@ -272,7 +320,6 @@ class ColorExtractor:
             scans[i, :] = np.median(tmp, axis=(0, 1))
         return scans
 
-
 # Very simple interface to fetch an image from the "IPWebCam" app
 class IpCam:
 
@@ -286,48 +333,26 @@ class IpCam:
         return frame
 
 
-# Testing/experimentation code (mostly to try out color recognition without having to launch the robot)
 if __name__ == '__main__':
     import pickle
-    points = np.array(pickle.load(open('scan-pos.pkl', 'rb')))
-   
-    # cam = IpCam('http://192.168.178.25:8080/shot.jpg')
-    # image = cam.frame()
-    # cv2.imwrite('scan.jpg', image)
- 
-    extractor = ColorExtractor(points, 10)
-    image = cv2.imread('scan.jpg')
-    scans = extractor.extract_bgrs(image)
-
-    hsvs = cv2.cvtColor(np.expand_dims(scans, 0), cv2.COLOR_BGR2HSV)[0, :, :]
-    from mpl_toolkits.mplot3d import Axes3D 
-    import matplotlib.pyplot as plt
-    from matplotlib.colors import hsv_to_rgb
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    for i in range(N_FACELETS):
-        if i in CENTERS:
-            continue
-        ax.scatter(
-            hsvs[i, 0], hsvs[i, 1], hsvs[i, 2], marker='o', 
-            color=scans[i, ::-1] / 255
-        )
-    ax.set_xlabel('H')
-    ax.set_ylabel('S')
-    ax.set_zlabel('V')
-    plt.show()
-
-    matcher = ColorMatcher()
     import time
+
+    points = np.array(pickle.load(open('scan-pos.pkl', 'rb')))   
+    extractor = ColorExtractor(points, 10)
+    matcher = ColorMatcher()
+
+    cam = IpCam('http://192.168.178.25:8080/shot.jpg')
+    cv2.imwrite('scan.jpg', cam.frame())
+    image = cv2.imread('scan.jpg')
+    
     tick = time.time()
     scans = extractor.extract_bgrs(image)
-    facecube = matcher.match(scans)
-    print(facecube)
+    facecube = matcher.match(scans, debug=True)
     print(time.time() - tick)
-    if facecube == '':
-        exit()
+    print(facecube)
 
-    from solve import Solver
-    with Solver() as solver:
-        print(solver.solve(facecube))
+    if facecube != '':
+        from solve import *
+        with Solver() as solver:
+            print(solver.solve(facecube))
 

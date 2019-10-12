@@ -96,6 +96,8 @@ class Solver:
         self.proc.terminate()
 
     def solve(self, facecube):
+        if facecube == '':
+            return None
         self.proc.stdin.write(('solve %s -1 %d\n' % (facecube, SOLVE_TIME)).encode())
         self.proc.stdin.flush() # command needs to be received instantly
         sol = self.proc.stdout.readline().decode()[:-1] # strip trailing '\n'
@@ -114,5 +116,5 @@ class Solver:
 
 if __name__ == '__main__':
     with Solver() as solver:
-        print(solver.scramble())
+        print(solver.solve('BDULURDLUFBBRRBUBULBLFFFFRRRDBFDDLRFDUFLLUBDDLLRUBFRUD'))
 
