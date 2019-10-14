@@ -194,22 +194,21 @@ def transform(hsv):
             break
         i += 1
     tmp1 = .2 * ((i - 1) + (hsv[0] - HUES[i - 1]) / (HUES[i] - HUES[i - 1]))
-    tmp2 = hsv[1] # 1 - (1 - hsv[1]) ** .75
+    tmp2 = hsv[2] # hsv[1] ** 1.75
     return np.array([
-        tmp2 * np.cos(2 * np.pi * tmp1), tmp2 * np.sin(2 * np.pi * tmp1), hsv[2] # hsv[2] * .5
+        tmp2 * np.cos(2 * np.pi * tmp1), tmp2 * np.sin(2 * np.pi * tmp1), hsv[1] * np.sqrt(.5) # hsv[2] * np.sqrt(.75)
     ])
 
 def distances(points1, points2):
     # Much faster than any manual calucaltions
     return scipy.spatial.distance.cdist(points1, points2, metric='euclidean')    
 
-def kmeans(points, centers):
-    # return centers
+def kmedians(points, centers):
     while True:
         assigned = np.argmin(distances(points, centers), axis=1)
         converged = True
         for i in range(centers.shape[0]):
-            tmp = np.mean(points[assigned == i], axis=0)
+            tmp = np.median(points[assigned == i], axis=0)
             if (tmp != centers[i]).any():
                 centers[i] = tmp
                 converged = False
@@ -226,13 +225,19 @@ def plot_colors(bgrs, transformed, centers):
     angles = np.linspace(0, 2 * np.pi, 1000)
     ax.plot(np.cos(angles), np.sin(angles), np.ones(angles.size))
 
+    print(centers)
+    for i in range(N_COLORS):
+        ax.scatter(
+            centers[i, 0], centers[i, 1], centers[i, 2], marker='o', color='pink'
+        )
+
     for i in range(bgrs.shape[0]):
         ax.scatter(
             transformed[i, 0], transformed[i, 1], transformed[i, 2],
             marker='o', color=bgrs[i, ::-1] / 255
         )
     assigned = np.argmin(distances(transformed, centers), axis=1)
-    for i in range(bgrs.shape[0]):
+    for i in range(0):
         p = transformed[i]
         c = centers[assigned[i]]
         ax.plot(
@@ -240,16 +245,20 @@ def plot_colors(bgrs, transformed, centers):
             color='black'
         )
 
+    ax.set_xlabel('1')
+    ax.set_ylabel('2')
+    ax.set_zlabel('3')
     plt.show()
 
 CLUSTERS = np.array([
-    transform([240 / 360, 1, 1]), # blue
-    transform([60 / 360, 1, 1]), # yellow
-    transform([0 / 360, 1, 1]), # red
-    transform([120 / 360, 1, 1]), # green
-    transform([0, 0, 1]), # white
-    transform([30 / 360, 1, 1])  # orange
+    transform([HUES[4], .9, .25]), # blue
+    transform([HUES[2], .75, .5]), # yellow
+    transform([HUES[0], .75, .33]), # red
+    transform([HUES[3], .9, .5]), # green
+    transform([0, 0, .66]), # white
+    transform([HUES[1], .75, .75])  # orange
 ])
+print(CLUSTERS)
 
 Assignment = namedtuple('Assignment', ['conf', 'facelet', 'col', 'rank'])
 
@@ -257,13 +266,37 @@ Assignment = namedtuple('Assignment', ['conf', 'facelet', 'col', 'rank'])
 class ColorMatcher:
 
    def match(self, bgrs, fixed_centers=True, debug=False):
-        hsvs = cv2.cvtColor(np.expand_dims(bgrs, 0), cv2.COLOR_BGR2HSV)[0, :, :]
+        hsvs = cv2.cvtColor(np.expand_dims(bgrs, 0), cv2.COLOR_BGR2HLS)[0, :, :]
         hsvs = hsvs.astype(np.float)
         hsvs[:, 0] /= 180
         hsvs[:, 1:] /= 255
         transformed = np.apply_along_axis(transform, 1, hsvs)
-       
-        centers = kmeans(transformed, transformed[CENTERS])
+
+        THRESHS = np.array([
+            transform([240 / 360, .5 , .75]),
+            transform([60 / 360, .5, .75]),
+            transform([0 / 360, .5, .75]),
+            transform([120 / 360, .5, .75]),
+            transform([-1, 1, 0]),
+            transform([30 / 360, .5, .75])
+        ])
+
+        def dist(p1, p2):
+            return np.abs(p1 - p2) @ np.array([3, 2, 1])
+
+        val = np.zeros((N_FACELETS, N_COLORS))
+        for f in range(N_FACELETS):
+            for c in range(N_COLORS):
+                val[f, c] = 1 / dist(transformed[f], THRESHS[c])
+        val /= np.sum(val, axis=1).reshape((-1, 1))
+        print(np.sort(val, axis=1))
+        print(np.sort(np.array(COLORS)[np.argmax(val, axis=1)]))
+        plot_colors(bgrs, transformed, THRESHS)
+
+        centers = kmedians(
+            transformed[[i for i in range(N_FACELETS) if i not in CENTERS], :], 
+            CLUSTERS.copy()
+        )
         if debug:
             plot_colors(bgrs, transformed, centers)
 
@@ -317,7 +350,14 @@ class ColorExtractor:
         for i in range(self.points.shape[0]):
             x, y = self.points[i]
             tmp = image[(y - d):(y + d), (x - d):(x + d), :]
-            scans[i, :] = np.median(tmp, axis=(0, 1))
+            scans[i, :] = np.mean(tmp, axis=(0, 1))
+
+        test = image.copy()        
+        for i in range(self.points.shape[0]):
+            x, y = self.points[i]
+            test = cv2.rectangle(test, (x - d, y - d), (x + d, y + d), (int(scans[i, 0]), int(scans[i, 1]), int(scans[i, 2])), -1)
+        cv2.imwrite('test.png', test)
+
         return scans
 
 # Very simple interface to fetch an image from the "IPWebCam" app
@@ -338,11 +378,11 @@ if __name__ == '__main__':
     import time
 
     points = np.array(pickle.load(open('scan-pos.pkl', 'rb')))   
-    extractor = ColorExtractor(points, 10)
+    extractor = ColorExtractor(points, 20)
     matcher = ColorMatcher()
 
-    cam = IpCam('http://192.168.178.25:8080/shot.jpg')
-    cv2.imwrite('scan.jpg', cam.frame())
+    # cam = IpCam('http://192.168.178.25:8080/shot.jpg')
+    # cv2.imwrite('scan.jpg', cam.frame())
     image = cv2.imread('scan.jpg')
     
     tick = time.time()
