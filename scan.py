@@ -1,3 +1,5 @@
+# TODO: there still seems to be a bug with corner constraints?
+
 from collections import namedtuple
 import copy
 from heapq import *
@@ -193,43 +195,73 @@ def transform(hsv):
         if hsv[0] < HUES[i]:
             break
         i += 1
-    print(hsv[0], HUES[i - 1], HUES[i], (hsv[0] - HUES[i - 1]) / (HUES[i] - HUES[i - 1]))
+    tmp1 = .2 * ((i - 1) + (hsv[0] - HUES[i - 1]) / (HUES[i] - HUES[i - 1]))
+    tmp2 = hsv[1] # 1 - (1 - hsv[1]) ** .75
     return np.array([
-        .2 * ((i - 1) + (hsv[0] - HUES[i - 1]) / (HUES[i] - HUES[i - 1])), 
-        hsv[1], hsv[2]
+        tmp2 * np.cos(2 * np.pi * tmp1), tmp2 * np.sin(2 * np.pi * tmp1), hsv[2] # hsv[2] * .5
     ])
 
-def color_prob(hue, hsv):
-    tmp = min(abs(hue - hsv[0]), 1 - abs(hue - hsv[0]))
-    tmp = 1 - 2 * (tmp if tmp < .5 else tmp - .5) 
-    return (2 * tmp) * (2 * hsv[1]) * (2 * hsv[2])
+def distances(points1, points2):
+    # Much faster than any manual calucaltions
+    return scipy.spatial.distance.cdist(points1, points2, metric='euclidean')    
 
-def white_prob(hsv):
-    return 1 * (2 * (1 - hsv[1])) * (2 * hsv[2])
+def kmeans(points, centers):
+    while True:
+        assigned = np.argmin(distances(points, centers), axis=1)
+        converged = True
+        for i in range(centers.shape[0]):
+            tmp = np.mean(points[assigned == i], axis=0)
+            if (tmp != centers[i]).any():
+                centers[i] = tmp
+                converged = False
+        if converged:
+            return centers
+
+def plot_colors(bgrs, transformed, centers):
+    from mpl_toolkits.mplot3d import Axes3D 
+    import matplotlib.pyplot as plt
+    
+    fig = plt.figure()
+    ax = fig.gca(projection='3d')
+ 
+    angles = np.linspace(0, 2 * np.pi, 1000)
+    ax.plot(np.cos(angles), np.sin(angles), np.ones(angles.size))
+
+    for i in range(bgrs.shape[0]):
+        ax.scatter(
+            transformed[i, 0], transformed[i, 1], transformed[i, 2],
+            marker='o', color=bgrs[i, ::-1] / 255
+        )
+    assigned = np.argmin(distances(transformed, centers), axis=1)
+    for i in range(bgrs.shape[0]):
+        p = transformed[i]
+        c = centers[assigned[i]]
+        ax.plot(
+            [p[0], c[0]], [p[1], c[1]], [p[2], c[2]],
+            color='black'
+        )
+
+    plt.show()
 
 Assignment = namedtuple('Assignment', ['conf', 'facelet', 'col', 'rank'])
 
 
 class ColorMatcher:
 
-   def match(self, bgrs, fixed_centers=True):
+    def match(self, bgrs, fixed_centers=True, debug=False):
         hsvs = cv2.cvtColor(np.expand_dims(bgrs, 0), cv2.COLOR_BGR2HSV)[0, :, :]
-        print(hsvs)
         hsvs = hsvs.astype(np.float)
         hsvs[:, 0] /= 180
         hsvs[:, 1:] /= 255
         transformed = np.apply_along_axis(transform, 1, hsvs)
-
-        probs = np.zeros((N_FACELETS, N_COLORS))
-        for f in range(N_FACELETS):
-            for c, hue in enumerate([.8, .4, 0, .6, -1, .2]):
-                if hue == -1:
-                    probs[f, c] = white_prob(transformed[f, :])
-                else:
-                    probs[f, c] = color_prob(hue, transformed[f, :])
+       
+        centers = kmeans(transformed, transformed[CENTERS])
+        if debug:
+            plot_colors(bgrs, transformed, centers)
 
         cube = CubeBuilder()
-        order = np.argsort(probs, axis=1)[:, ::-1]
+        distm = distances(transformed, centers)
+        order = np.argsort(distm, axis=1)
         # Duplicate last column to avoid boundary checks
         order = np.concatenate((order, order[:, -1].reshape(-1, 1)), axis=1)
 
@@ -244,7 +276,7 @@ class ColorMatcher:
             if fixed_centers and f in CENTERS:
                 continue
             heap.append(Assignment(
-                (probs[f, order[f, 1]] - probs[f, order[f, 0]]) / (probs[f, order[f, 0]] + 1e-9),
+                distm[f, order[f, 0]] - distm[f, order[f, 1]],
                 f, order[f][0], 0
             ))
         heapify(heap)
@@ -252,13 +284,12 @@ class ColorMatcher:
         while assigned < N_FACELETS:
             ass = heappop(heap)
             if not cube.assign(ass.facelet, ass.col):
-                print(hsvs[ass.facelet], transformed[ass.facelet, :])
                 f = ass.facelet
                 i = ass.rank
                 if i == N_COLORS - 1:
                     return ''
                 heappush(heap, Assignment(
-                    (probs[f, order[f, i + 2]] - probs[f, order[f, i + 1]]) / (probs[f, order[f, i + 1]] + 1e-9),
+                    distm[f, order[f, i + 1]] - distm[f, order[f, i + 2]],
                     f, order[f][i + 1], i + 1 
                 ))
             else:
@@ -279,15 +310,8 @@ class ColorExtractor:
             x, y = self.points[i]
             tmp = image[(y - d):(y + d), (x - d):(x + d), :]
             scans[i, :] = np.mean(tmp, axis=(0, 1))
-
-        test = image.copy()        
-        for i in range(self.points.shape[0]):
-            x, y = self.points[i]
-            test = cv2.rectangle(test, (x - d - 2, y - d - 2), (x + d + 2, y + d + 2), (0, 0, 0), -1)
-            test = cv2.rectangle(test, (x - d, y - d), (x + d, y + d), (int(scans[i, 0]), int(scans[i, 1]), int(scans[i, 2])), -1)
-        cv2.imwrite('test.png', test)
-
         return scans
+
 
 # Very simple interface to fetch an image from the "IPWebCam" app
 class IpCam:
@@ -316,7 +340,7 @@ if __name__ == '__main__':
     
     tick = time.time()
     scans = extractor.extract_bgrs(image)
-    facecube = matcher.match(scans)
+    facecube = matcher.match(scans, debug=True)
     print(time.time() - tick)
     print(facecube)
 
