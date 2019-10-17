@@ -1,5 +1,3 @@
-# TODO: there still seems to be a bug with corner constraints?
-
 from collections import namedtuple
 import copy
 from heapq import *
@@ -195,10 +193,9 @@ def transform(hsv):
         if hsv[0] < HUES[i]:
             break
         i += 1
-    tmp1 = .2 * ((i - 1) + (hsv[0] - HUES[i - 1]) / (HUES[i] - HUES[i - 1]))
-    tmp2 = hsv[1] # 1 - (1 - hsv[1]) ** .75
+    tmp = .2 * ((i - 1) + (hsv[0] - HUES[i - 1]) / (HUES[i] - HUES[i - 1]))
     return np.array([
-        tmp2 * np.cos(2 * np.pi * tmp1), tmp2 * np.sin(2 * np.pi * tmp1), hsv[2] # hsv[2] * .5
+        hsv[1] * np.cos(2 * np.pi * tmp), hsv[1] * np.sin(2 * np.pi * tmp), hsv[2]
     ])
 
 def distances(points1, points2):
@@ -249,7 +246,7 @@ Assignment = namedtuple('Assignment', ['conf', 'facelet', 'col', 'rank'])
 class ColorMatcher:
 
     def match(self, bgrs, fixed_centers=True, debug=False):
-        hsvs = cv2.cvtColor(np.expand_dims(bgrs, 0), cv2.COLOR_BGR2HSV)[0, :, :]
+        hsvs = cv2.cvtColor(np.expand_dims(bgrs, 0), cv2.COLOR_BGR2HSV)[0]
         hsvs = hsvs.astype(np.float)
         hsvs[:, 0] /= 180
         hsvs[:, 1:] /= 255
@@ -305,12 +302,16 @@ class ColorExtractor:
 
     def extract_bgrs(self, image):
         d = self.size // 2
-        scans = np.zeros((self.points.shape[0], 3), dtype=np.uint8)
+        scans = np.zeros((self.points.shape[0], 3))
+
         for i in range(self.points.shape[0]):
-            x, y = self.points[i]
-            tmp = image[(y - d):(y + d), (x - d):(x + d), :]
-            scans[i, :] = np.mean(tmp, axis=(0, 1))
-        return scans
+            for x, y in self.points[i]:
+                tmp = image[(y - d):(y + d), (x - d):(x + d)]
+                scans[i] += np.mean(tmp, axis=(0, 1))
+            scans[i] /= len(self.points[i]) # average over all scan points for face
+
+        scans[i] = scans[i] ** .75 # gamma correction
+        return scans.astype(np.uint8)
 
 
 # Very simple interface to fetch an image from the "IPWebCam" app
@@ -334,8 +335,8 @@ if __name__ == '__main__':
     extractor = ColorExtractor(points, 10)
     matcher = ColorMatcher()
 
-    # cam = IpCam('http://192.168.178.25:8080/shot.jpg')
-    # cv2.imwrite('scan.jpg', cam.frame())
+    cam = IpCam('http://192.168.178.25:8080/shot.jpg')
+    cv2.imwrite('scan.jpg', cam.frame())
     image = cv2.imread('scan.jpg')
     
     tick = time.time()
