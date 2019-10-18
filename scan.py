@@ -310,7 +310,7 @@ class ColorExtractor:
                 scans[i] += np.mean(tmp, axis=(0, 1))
             scans[i] /= len(self.points[i]) # average over all scan points for face
 
-        scans[i] = scans[i] ** .75 # gamma correction
+        scans = ((scans / 255) ** .75) * 255 # gamma correction
         return scans.astype(np.uint8)
 
 
@@ -332,13 +332,14 @@ if __name__ == '__main__':
     import time
 
     points = np.array(pickle.load(open('scan-pos.pkl', 'rb')))   
+    print(points)
     extractor = ColorExtractor(points, 10)
     matcher = ColorMatcher()
 
-    cam = IpCam('http://192.168.178.25:8080/shot.jpg')
-    cv2.imwrite('scan.jpg', cam.frame())
+#    cam = IpCam('http://192.168.178.25:8080/shot.jpg')
+#    cv2.imwrite('scan.jpg', cam.frame())
     image = cv2.imread('scan.jpg')
-    
+ 
     tick = time.time()
     scans = extractor.extract_bgrs(image)
     facecube = matcher.match(scans, debug=True)
