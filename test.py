@@ -21,7 +21,10 @@ print('Connected.')
 
 tick = time.time()
 
-robot.execute(moves("F L R F L R F"))
+# robot.execute(SEQ3)
+
+# robot.execute(moves("L F R D L F R D L F R D L F R D L F R D"))
+# robot.execute(moves("U R F D L"))
 
 # robot.execute([9, 3, 2, 5, 12, 0, 11, 8, 5, 14, 6, 5, 14, 2, 8, 3, 12, 0, 9, 5, 14, 11, 4, 0, 10, 4, 2, 11])
 # robot.execute([0, 9, 4, 2, 10, 4, 9, 3, 12, 2, 11, 5, 14, 6, 0, 3, 12, 8, 3, 12, 6, 2, 9, 3, 14, 0, 5, 11])
@@ -47,7 +50,7 @@ robot.execute(moves("F L R F L R F"))
 # robot.execute(moves("D R L U R L F R L D R L U R L F R L"))
 # robot.execute(moves("L U D R U D F U D L"))
 
-# robot.execute(moves("U D R' L' U D R' L' U D R' L'"))
+robot.execute(moves("U D R' L' U D R' L' U D R' L'"))
 # robot.execute(moves("U D R' L U D' R L' U D R' L"))
 # robot.execute(moves("U D R L U D R L U D R L"))
 

@@ -61,14 +61,14 @@ def cut(m1, m2, inverted=False):
     return AX_PARTCUT1
 
 WAITDEG = [
-    27, # CUT
-    20, # ANTICUT
+    22, # CUT
+    22, # 20, # ANTICUT
     27, # AX_CUT1
     27, # AX_CUT2
     27, # AX_PARTCUT1
     27, # AX_PARTCUT2
-    22, # AX_ANTICUT1
-    22, # AX_ANTICUT2
+    27, # 22, # AX_ANTICUT1
+    27, # 22, # AX_ANTICUT2
     27, # AXAX_CUT
     27, # AXAX_PARTCUT
     27  # AXAX_ANTICUT
@@ -84,20 +84,23 @@ COUNT = [-1, -2, 1] # we have to invert directions from the perspective of the m
 
 class Robot:
 
-    HOST0 = '00:16:53:40:CE:B6'
-    HOST1 = '00:16:53:4A:BA:BA'
+    HOSTS = [
+        '00:16:53:7F:36:D9',
+        '00:16:53:40:CE:B6',
+        '00:16:53:4A:BA:BA'
+    ]
 
     FACE_TO_MOTOR = [
-        Motor(0, ev3.PORT_A), # TODO
-        Motor(1, ev3.PORT_C + ev3.PORT_D),
-        Motor(0, ev3.PORT_B + ev3.PORT_C),
-        Motor(0, ev3.PORT_D), # TODO
-        Motor(1, ev3.PORT_A + ev3.PORT_B)
+        Motor(2, ev3.PORT_A + ev3.PORT_B),
+        Motor(1, ev3.PORT_A + ev3.PORT_B),
+        Motor(0, ev3.PORT_C + ev3.PORT_D),
+        Motor(2, ev3.PORT_C + ev3.PORT_D),
+        Motor(1, ev3.PORT_C + ev3.PORT_D)
     ]
 
     def __init__(self):
         self.bricks = [
-            ev3.EV3(protocol='Usb', host=Robot.HOST0), ev3.EV3(protocol='Usb', host=Robot.HOST1)
+            ev3.EV3(protocol='Usb', host=host) for host in Robot.HOSTS
         ]
 
     def move(self, m, prev, next):
@@ -106,12 +109,13 @@ class Robot:
 
         if next is None:
             # Cube can be considered solved once the final turn is < 45 degrees before completion
-            waitdeg = deg - (27 - 1)
+            waitdeg = abs(deg) - (27 - 1)
         else:
             waitdeg = WAITDEG[cut(m, next)]
             if is_half(m):
                 waitdeg += WAITDEG_HALF
-    
+
+        print(waitdeg)    
         rotate(self.bricks[motor.brick], motor.ports, deg, waitdeg)
 
     def move1(self, m, prev, next):
@@ -127,7 +131,6 @@ class Robot:
             if is_half(m):
                 waitdeg += WAITDEG_HALF
 
-        print(waitdeg)
         # Half-turn + quarter-turn case
         if (abs(count1) == 2) != (abs(count2) == 2):
             if abs(count2) == 2:
@@ -169,8 +172,8 @@ class Robot:
             print(time.time() - tick)            
 
     def solve_pressed(self):
-        return is_pressed(self.bricks[1], 3) # Right button
+        return is_pressed(self.bricks[0], 0) # Right button
 
     def scramble_pressed(self):
-        return is_pressed(self.bricks[0], 0) # Left button
+        return is_pressed(self.bricks[2], 3) # Left button
 
