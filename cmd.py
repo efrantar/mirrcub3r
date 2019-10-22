@@ -36,7 +36,7 @@ def cmd_waitdeg_target(deg, waitport, waitdeg, tarvar):
         ev3.GVX(tarvar)
     ])
 
-# Wait until target tacho cont is reached by a rotating motor
+# Wait until target tacho count is reached by a rotating motor
 def cmd_waitdeg_wait(deg, waitport, tarvar, waitvar):
     return cmd_tacho(waitport, waitvar) + b''.join([
         ev3.opJr_Lt32 if deg > 0 else ev3.opJr_Gt32,
@@ -90,4 +90,16 @@ def is_pressed(brick, port):
         ev3.GVX(0) 
     ])
     return struct.unpack('<b', brick.send_direct_cmd(cmd, global_mem=1)[5:])[0] > 0
+
+
+if __name__ == '__main__':
+    brick1 = ev3.EV3(protocol='Usb', host='00:16:53:40:CE:B6')
+    brick2 = ev3.EV3(protocol='Usb', host='00:16:53:4A:BA:BA')
+
+    import time
+    tick = time.time()
+    brick1.send_direct_cmd(cmd_rotate(ev3.PORT_A + ev3.PORT_B + ev3.PORT_C + ev3.PORT_D, 54))
+    time.sleep(.055)
+    brick2.send_direct_cmd(cmd_rotate(ev3.PORT_A + ev3.PORT_B + ev3.PORT_C + ev3.PORT_D, 54))
+    print(time.time() - tick)
 

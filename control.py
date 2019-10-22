@@ -61,17 +61,17 @@ def cut(m1, m2, inverted=False):
     return AX_PARTCUT1
 
 WAITDEG = [
-    22, # CUT
-    22, # 20, # ANTICUT
-    27, # AX_CUT1
-    27, # AX_CUT2
-    27, # AX_PARTCUT1
-    27, # AX_PARTCUT2
-    27, # 22, # AX_ANTICUT1
-    27, # 22, # AX_ANTICUT2
-    27, # AXAX_CUT
-    27, # AXAX_PARTCUT
-    27  # AXAX_ANTICUT
+    20, # CUT
+    18, # ANTICUT
+    24, # AX_CUT1
+    24, # AX_CUT2
+    22, # AX_PARTCUT1
+    22, # AX_PARTCUT2
+    20, # AX_ANTICUT1
+    20, # AX_ANTICUT2
+    24, # AXAX_CUT
+    22, # AXAX_PARTCUT
+    24  # AXAX_ANTICUT
 ]
 
 WAITDEG_HALF = 41
@@ -142,7 +142,7 @@ class Robot:
         else:
             # We always want to wait on the move with the worse in-cutting
             if prev is not None and WAITDEG[cut(prev, m[0])] > WAITDEG[cut(prev, m[1])]:
-                return move1((m2, m1), prev, next)
+                return self.move1((m2, m1), prev, next)
             rotate1(self.bricks[motor1.brick], motor1.ports, motor2.ports, deg1, deg2, waitdeg)
 
     def execute(self, sol):
@@ -172,8 +172,8 @@ class Robot:
             print(time.time() - tick)            
 
     def solve_pressed(self):
-        return is_pressed(self.bricks[0], 0) # Right button
+        return is_pressed(self.bricks[2], 3) # Right button
 
     def scramble_pressed(self):
-        return is_pressed(self.bricks[2], 3) # Left button
+        return is_pressed(self.bricks[0], 0) # Left button
 
