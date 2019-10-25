@@ -98,8 +98,7 @@ if __name__ == '__main__':
 
     import time
     tick = time.time()
-    brick1.send_direct_cmd(cmd_rotate(ev3.PORT_A + ev3.PORT_B + ev3.PORT_C + ev3.PORT_D, 54))
-    time.sleep(.055)
-    brick2.send_direct_cmd(cmd_rotate(ev3.PORT_A + ev3.PORT_B + ev3.PORT_C + ev3.PORT_D, 54))
+    # rotate(brick1, ev3.PORT_A + ev3.PORT_B, 54, 28)
+    rotate(brick1, ev3.PORT_A + ev3.PORT_B + ev3.PORT_C + ev3.PORT_D, 54, 28)
     print(time.time() - tick)
 
