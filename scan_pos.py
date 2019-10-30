@@ -25,8 +25,8 @@ if os.path.exists(FILE):
     points = scale(points, .5)
     for i, ps in enumerate(points):
         for p in ps:
-            cv2.putText(image, str(i), p, cv2.FONT_HERSHEY_SIMPLEX, .5, COLOR)
-            # draw_point(p)
+            # cv2.putText(image, str(i), p, cv2.FONT_HERSHEY_SIMPLEX, .5, COLOR)
+            draw_point(p)
 else:
     points = []
 i = len(points)

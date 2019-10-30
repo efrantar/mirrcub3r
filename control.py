@@ -109,27 +109,28 @@ def optim_halfdirs(sol):
     return sol1
 
 
+SAFE = 0
 WAITDEG = [
-    20, # CUT
-    18, # ANTICUT
-    24, # AX_CUT1
-    24, # AX_CUT2
-    22, # AX_PARTCUT1
-    22, # AX_PARTCUT2
-    20, # AX_ANTICUT1
-    20, # AX_ANTICUT2
-    24, # AXAX_CUT
-    22, # AXAX_PARTCUT
-    24  # AXAX_ANTICUT
+    22 + SAFE, # CUT
+    18 + SAFE, # ANTICUT
+    24 + SAFE, # AX_CUT1
+    24 + SAFE, # AX_CUT2
+    22 + SAFE, # AX_PARTCUT1
+    22 + SAFE, # AX_PARTCUT2
+    20 + SAFE, # AX_ANTICUT1
+    20 + SAFE, # AX_ANTICUT2
+    26 + SAFE, # AXAX_CUT
+    22 + SAFE, # AXAX_PARTCUT
+    24 + SAFE  # AXAX_ANTICUT
 ]
 
-WAITDEG_HALF = 41
+WAITDEG_HALF = 49 + 2 * SAFE
 SPECIAL_AX_WAITDEG = 5
 
 Motor = namedtuple('Motor', ['brick', 'ports'])
 
 DEGS = [0, -54, -108, 108, 54]
-COUNT = [-1, -2, 1, -2] # we have to invert directions from the perspective of the motors
+COUNT = [-1, -2, 1, 2] # we have to invert directions from the perspective of the motors
 
 class Robot:
 

@@ -27,6 +27,13 @@ def cmd_rotate(ports, deg):
         ev3.LCX(1)
     ])
 
+def cmd_ready(ports):
+    return b''.join([
+        ev3.opOutput_Ready,
+        ev3.LCX(0),
+        ev3.LCX(ports)
+    ])
+
 # Compute target tacho count for waiting
 def cmd_waitdeg_target(deg, waitport, waitdeg, tarvar):
     return cmd_tacho(waitport, tarvar) + b''.join([
@@ -52,7 +59,8 @@ def some_port(ports):
 # Peform a single face cube move
 def rotate(brick, ports, deg, waitdeg):
     waitport = some_port(ports)
-    cmd = cmd_waitdeg_target(deg, waitport, waitdeg, 0)
+    cmd = cmd_ready(ports)
+    cmd += cmd_waitdeg_target(deg, waitport, waitdeg, 0)
     cmd += cmd_rotate(ports, deg)
     cmd += cmd_waitdeg_wait(deg, waitport, 0, 4)
     brick.send_direct_cmd(cmd, global_mem=8)
@@ -60,7 +68,8 @@ def rotate(brick, ports, deg, waitdeg):
 # Perform an axial move where both sides are rotated by the same abs-degrees
 def rotate1(brick, ports1, ports2, deg1, deg2, waitdeg):
     waitport = some_port(ports2)
-    cmd = cmd_waitdeg_target(deg2, waitport, waitdeg, 0)
+    cmd = cmd_ready(ports1 + ports2)
+    cmd += cmd_waitdeg_target(deg2, waitport, waitdeg, 0)
     cmd += cmd_rotate(ports1, deg1)
     cmd += cmd_rotate(ports2, deg2)
     cmd += cmd_waitdeg_wait(deg2, waitport, 0, 4)
@@ -71,7 +80,8 @@ def rotate1(brick, ports1, ports2, deg1, deg2, waitdeg):
 # end jointly and are thus aligned by the next move.
 def rotate2(brick, ports1, ports2, deg1, deg2, waitdeg1, waitdeg2):
     waitport = some_port(ports1)
-    cmd = cmd_waitdeg_target(deg1, waitport, waitdeg1, 0)
+    cmd = cmd_ready(ports1 + ports2)
+    cmd += cmd_waitdeg_target(deg1, waitport, waitdeg1, 0)
     cmd += cmd_waitdeg_target(deg1, waitport, waitdeg2, 4)
     cmd += cmd_rotate(ports1, deg1)
     cmd += cmd_waitdeg_wait(deg1, waitport, 0, 8)
@@ -93,12 +103,10 @@ def is_pressed(brick, port):
 
 
 if __name__ == '__main__':
-    brick1 = ev3.EV3(protocol='Usb', host='00:16:53:40:CE:B6')
-    brick2 = ev3.EV3(protocol='Usb', host='00:16:53:4A:BA:BA')
+    brick = ev3.EV3(protocol='Usb', host='00:16:53:40:CE:B6')
 
     import time
     tick = time.time()
-    # rotate(brick1, ev3.PORT_A + ev3.PORT_B, 54, 28)
-    rotate(brick1, ev3.PORT_A + ev3.PORT_B + ev3.PORT_C + ev3.PORT_D, 54, 28)
+    rotate(brick, ev3.PORT_A + ev3.PORT_B + ev3.PORT_C + ev3.PORT_D, 54, 28)
     print(time.time() - tick)
 
