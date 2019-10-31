@@ -92,7 +92,7 @@ def optim_halfdirs(sol):
     for i in range(1, len(sol)):
         for j, op2 in enumerate(options[i]):
             for k, op1 in enumerate(options[i - 1]):
-                tmp = DP[i - 1][k] + WAITDEG[cut(op1, op2)]
+                tmp = DP[i - 1][k] + WAITDEG[cut(op1, op2)][int(is_half(op1))]
                 if tmp < DP[i][j]:
                     DP[i][j] = tmp
                     PD[i][j] = k
@@ -109,22 +109,20 @@ def optim_halfdirs(sol):
     return sol1
 
 
-SAFE = 0
 WAITDEG = [
-    22 + SAFE, # CUT
-    18 + SAFE, # ANTICUT
-    24 + SAFE, # AX_CUT1
-    24 + SAFE, # AX_CUT2
-    22 + SAFE, # AX_PARTCUT1
-    22 + SAFE, # AX_PARTCUT2
-    20 + SAFE, # AX_ANTICUT1
-    20 + SAFE, # AX_ANTICUT2
-    26 + SAFE, # AXAX_CUT
-    22 + SAFE, # AXAX_PARTCUT
-    24 + SAFE  # AXAX_ANTICUT
+    [22, 66], # CUT
+    [18, 60], # ANTICUT
+    [24, 76], # AX_CUT1
+    [24, 82], # AX_CUT2
+    [22, 72], # AX_PARTCUT1
+    [22, 76], # AX_PARTCUT2
+    [20, 68], # AX_ANTICUT1
+    [20, 68], # AX_ANTICUT2
+    [26, 78], # AXAX_CUT
+    [22, 76], # AXAX_PARTCUT
+    [24, 70]  # AXAX_ANTICUT
 ]
 
-WAITDEG_HALF = 49 + 2 * SAFE
 SPECIAL_AX_WAITDEG = 5
 
 Motor = namedtuple('Motor', ['brick', 'ports'])
@@ -161,9 +159,7 @@ class Robot:
             # Cube can be considered solved once the final turn is < 45 degrees before completion
             waitdeg = abs(deg) - (27 - 1)
         else:
-            waitdeg = WAITDEG[cut(m, next)]
-            if is_half(m):
-                waitdeg += WAITDEG_HALF
+            waitdeg = WAITDEG[cut(m, next)][int(is_half(m))]
 
         print(waitdeg)
         rotate(self.bricks[motor.brick], motor.ports, deg, waitdeg)
@@ -177,9 +173,7 @@ class Robot:
         if next is None:
            waitdeg = max(deg1, deg2) - (27 - 1)
         else:
-            waitdeg = WAITDEG[cut(m, next)]
-            if is_half(m):
-                waitdeg += WAITDEG_HALF
+            waitdeg = WAITDEG[cut(m, next)][int(is_half(m))]
 
         # Half-turn + quarter-turn case
         if (abs(count1) == 2) != (abs(count2) == 2):
