@@ -51,6 +51,7 @@ with Solver() as solver:
         facecube = matcher.match(scans)
         print('Solving ...')
         sol = solver.solve(facecube)
+        print(time.time() - start)
 
         if sol is not None:
             print('Executing ...')

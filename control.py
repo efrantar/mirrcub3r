@@ -102,9 +102,9 @@ def optim_halfdirs(sol):
         if DP[-1][i] < DP[-1][j]:
             j = i
     sol1 = [options[-1][j]]
-    for i in range(len(sol) - 2, -1, -1):
-        sol1.append(options[i][j])
+    for i in range(len(sol) - 1, 0, -1):
         j = PD[i][j]
+        sol1.append(options[i - 1][j])
     sol1.reverse()
     return sol1
 
