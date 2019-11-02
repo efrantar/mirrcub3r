@@ -5,7 +5,7 @@ This repository contains the full source-code of *mirrcub3r*, the first ever Leg
 
 ![](https://github.com/efrantar/mirrcub3r/blob/master/sub1.gif)
 
-More detailled videos showcasing mirrcub3r can be found here: TODO (improved version), https://www.youtube.com/watch?v=03V3915YuB4 (initial version, ~1.5s average)
+More detailed videos showcasing mirrcub3r can be found here: TODO (improved version), https://www.youtube.com/watch?v=03V3915YuB4 (initial version, ~1.5s average)
 
 # Details
 
