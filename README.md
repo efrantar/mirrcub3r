@@ -7,7 +7,7 @@ This repository contains the full source-code of *mirrcub3r*, the first ever Leg
 
 More detailed videos showcasing mirrcub3r can be found here: TODO (improved version), https://www.youtube.com/watch?v=03V3915YuB4 (initial version, ~1.5s average)
 
-# Details
+## Details
 
 The robot is driven by 3 Lego Mindstorms EV3 bricks driving a total of 10 medium motors. 2 motors each are combined with additional gearing to achieve higher speeds and more turning power. Mirrcub3r's name comes from the the fact that it uses 4 small mirrors precisely positioned so that a single smartphone camera can see all 6 sides of the cube at once, thus enabling ~5 millisecond scanning times (to the best of my knowledge, this is the first cube-solver to employ such a mirror system). The robot connecting directly to the centers of the cube-faces is enabled by glueing "2x2 Plate Round" bricks on the cube's (a well lubed and relatively tightly tensioned GAN 356 R) center caps. Some people might consider this cheating, however all recent (non-Lego) official Guinness World Records also feature robots that require some modifications of the cube centers. The robot can only turng 5 faces of the cube, this is however sufficient to solve all possible scrambles (with ~12% average move penalty). Solutions are computed by my own highly-optimized `rob-twophase` solver in `-DQUARTER -DAXIAL -DFACES5` mode. It not only fully utilizes all 6 cores / 12 threads of an AMD Ryzen 3600 but is also specifically written to find solutions that are particularly efficient to execute for mirrcub3r (for example containing many consecutive moves on parallel faces which can be performed at the same time). The robot is controlled via Lego Mindstorm Direct commands (compiled bit-patterns accepted by the stock Lego firmware) sent over USB from a PC to the appropriate EV3s using Christoph Gaukel's `ev3-python3` API. This rather inconvenient way of programming the Mindstorms is chosen to minimize any additional overhead caused by alternative VMs while leveraging Lego's official (very well optimized) motor drivers. Combined with a moveset optimization system that considers ~20 different corner cutting cases, each individually optimized, this pushes solving speed pretty much to Lego's absolute limits.
 
@@ -21,7 +21,7 @@ The most interesting parts of the code provided here are probably:
 
 * The source code of the highly optimized solving algorithm is located in a different repository: https://github.com/efrantar/twophase
 
-# Further Comments
+## Further Comments
 
 Note that the code provided here is primarily intended for people interested in the underlying techniques of an extremely fast cube-solver. In particular, as a reference / inspirations for how to effectively overcome the biggest challenges of a cube-solving robot in general as well as for pushing the Lego Mindstorms hardware to its speed limits (just please take into account that most of what you see here is quite advanced and most likely absolutely overkill if you are working on your very first cube-solver). This project is however not intended as a model to be rebuilt one-to-one and run with prewritten software, which is why no building instructions are provided (and there is no particularly user-friendly interface). There are other really cool robots designed specifically for that purpose :).
 
