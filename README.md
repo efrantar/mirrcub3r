@@ -3,7 +3,9 @@ mirrcub3r
 
 This repository contains the full source-code of *mirrcub3r*, the first ever Lego (Mindstorms) robot to solve a (randomly scrambled) Rubik's Cube in under 1 second. With an average solving time of around 1.2 seconds, it is currently (November 2019) also the fastest Lego-based solver in the world.
 
-Videos showcasing mirrcub3r can be found here: TODO (improved version), https://www.youtube.com/watch?v=03V3915YuB4 (initial version, ~1.5s average)
+![](https://github.com/efrantar/mirrcub3r/blob/master/sub1.gif)
+
+More detailled videos showcasing mirrcub3r can be found here: TODO (improved version), https://www.youtube.com/watch?v=03V3915YuB4 (initial version, ~1.5s average)
 
 # Details
 
