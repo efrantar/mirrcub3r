@@ -115,16 +115,16 @@ class CubeBuilder:
         cubie = FACELET_TO_CUBIE[facelet]
         if (facelet % 9) % 2 == 1: # is on an edge
             if col not in self.edge_cols(cubie):
-                print('elim', facelet, COLORS[col])
+                print('elim', facelet, COLORS[col]) # NOTE: for debugging
                 return False
             self.assign_edge(facelet, col)
         elif cubie != -1: # don't go here for centers
             if col not in self.corner_cols(cubie):
-                print('elim', facelet, COLORS[col])
+                print('elim', facelet, COLORS[col]) # NOTE: for debugging
                 return False
             self.assign_corner(facelet, col)
 
-        print('assign', facelet, COLORS[col]) 
+        print('assign', facelet, COLORS[col]) # NOTE: for debugging
         self.colors[facelet] = col
         return True
 
@@ -184,9 +184,10 @@ class CubeBuilder:
         return ''.join([COL_NAMES[c] for c in self.colors])
 
 
-# red, orange, yellow, green, blue, red
+# Red, orange, yellow, green, blue, red
 HUES = np.array([0, 30, 60, 120, 240, 360]) / 360
 
+# Transform hue space so that that the distance between all cube colors is the same 
 def transform(hsv): 
     i = 1
     while i < 5:
@@ -199,7 +200,7 @@ def transform(hsv):
     ])
 
 def distances(points1, points2):
-    # Much faster than any manual calucaltions
+    # Much faster than any manual calculations
     return scipy.spatial.distance.cdist(points1, points2, metric='euclidean')    
 
 def kmeans(points, centers):
@@ -214,6 +215,7 @@ def kmeans(points, centers):
         if converged:
             return centers
 
+# Debugging plot
 def plot_colors(bgrs, transformed, centers):
     from mpl_toolkits.mplot3d import Axes3D 
     import matplotlib.pyplot as plt
@@ -310,7 +312,6 @@ class ColorExtractor:
                 scans[i] += np.mean(tmp, axis=(0, 1))
             scans[i] /= len(self.points[i]) # average over all scan points for face
 
-        # scans = ((scans / 255) ** .75) * 255 # gamma correction
         return scans.astype(np.uint8)
 
 
@@ -327,6 +328,7 @@ class IpCam:
         return frame
 
 
+# Very useful to test if scanning is not working without having to boot the robot
 if __name__ == '__main__':
     import pickle
     import time

@@ -6,7 +6,7 @@ import time
 import ev3
 
 
-# We also consider inverted half-moves here
+# We also consider inverted half-moves here (thus %/ 4 instead of 3)
 
 def are_parallel(m1, m2):
     return abs(m1 // 4 - m2 // 4) == 3
@@ -65,6 +65,7 @@ def cut(m1, m2, inverted=False):
 def is_clock(m):
     return m % 4 <= 1
 
+# Determine optimal turing directions for half-turns with respect to corner cutting
 def optim_halfdirs(sol):
     def inv(m):
         return (m // 4) * 4 + ((m + 2) % 4)
@@ -84,6 +85,8 @@ def optim_halfdirs(sol):
             options[i].append(sol[i])
             if is_half(sol[i]):
                 options[i].append(inv(sol[i]))
+
+    # Dynamic programming to find the actual optimumal maneuvers instead of just an approximation
 
     DP = [[float('inf')] * 4 for _ in range(len(sol))]
     PD = [[-1] * 4 for _ in range(len(sol))]
@@ -109,6 +112,7 @@ def optim_halfdirs(sol):
     return sol1
 
 
+# [][0] for quarter- and [][1] for half-turns
 WAITDEG = [
     [22, 66], # CUT
     [18, 60], # ANTICUT
@@ -123,10 +127,12 @@ WAITDEG = [
     [24, 70]  # AXAX_ANTICUT
 ]
 
+# For half + quarter axial turns
 SPECIAL_AX_WAITDEG = 5
 
 Motor = namedtuple('Motor', ['brick', 'ports'])
 
+# Somewhat of a relic from the prior version where we had differently geared motors
 DEGS = [0, -54, -108, 108, 54]
 COUNT = [-1, -2, 1, 2] # we have to invert directions from the perspective of the motors
 
@@ -156,12 +162,11 @@ class Robot:
         deg = DEGS[COUNT[m % 4]]
 
         if next is None:
-            # Cube can be considered solved once the final turn is < 45 degrees before completion
+            # NOTE: Cube can be considered solved once the final turn is < 45 degrees before completion
             waitdeg = abs(deg) - (27 - 1)
         else:
             waitdeg = WAITDEG[cut(m, next)][int(is_half(m))]
 
-        print(waitdeg)
         rotate(self.bricks[motor.brick], motor.ports, deg, waitdeg)
 
     def move1(self, m, prev, next):
@@ -193,7 +198,7 @@ class Robot:
         if len(sol) == 0:
             return
 
-        # Convert to numbering that includes inverse half-turns
+        # Convert to numbering that includes inverse half-turns (i.e. 4 options per face)
         sol = [(m // 3) * 4 + (m % 3) for m in sol]
         sol1 = []
         i = 0
@@ -205,13 +210,12 @@ class Robot:
                 sol1.append(sol[i])
                 i += 1
         sol1 = optim_halfdirs(sol1)
-        print(len(sol1), sol1)
+        print(len(sol1))
 
         for i in range(len(sol1)):
             prev = sol1[i - 1] if i > 0 else None
             next = sol1[i + 1] if i < len(sol1) - 1 else None
             
-            print(Robot.FACE_TO_MOTOR[sol[i] // 4].brick)
             tick = time.time()
             if is_axial(sol1[i]):
                 self.move1(sol1[i], prev, next)
@@ -220,8 +224,8 @@ class Robot:
             print(time.time() - tick)            
 
     def solve_pressed(self):
-        return is_pressed(self.bricks[2], 3) # Right button
+        return is_pressed(self.bricks[2], 3) # right button
 
     def scramble_pressed(self):
-        return is_pressed(self.bricks[0], 0) # Left button
+        return is_pressed(self.bricks[0], 0) # left button
 
