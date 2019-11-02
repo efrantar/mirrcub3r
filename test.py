@@ -21,10 +21,23 @@ print('Connected.')
 
 tick = time.time()
 
-# robot.execute(moves("D' R2 D F2 U2 F U D R' L U D' F U' D R L' U' L2 U2 D'"))
+# Scramble for the 0.929 solve
+# robot.execute(moves("L2 U' F2 U' R' L U R' U' D' R L F' D R' U D L' U D' R U"))
 
-# robot.execute(SEQ3)
+# Sample scramble for POV solve video
+# robot.execute(moves("D R2 L2 U D R2 L2 F R L D R L U D L' F D' R' D' L F D R' U'"))
+# robot.execute(moves("U R D' F' L' D R D F' L U' D' R' L' D' R' L' F' R2 L2 U' D' R2 L2 D'"))
 
+# Moveset demo
+# robot.execute(moves(
+#     "U R F' D L' R' U R' L F U D R' L' U' D F R L U D " +
+#     "R2 F D2 L' U2 D2 F' R2 L2 U R2 L2 U' D' R2 L2 U D"
+# ))
+
+# Try some solves
+# robot.execute(SEQ1)
+
+# Quarter-turn corner cutting tests
 # robot.execute(moves("U R' F D' L U' R F' D L' U R' F D' L U' R F' D L'"))
 # robot.execute(moves("U R F D L U R F D L U R F D L U R F D L"))
 # robot.execute(moves("U D R' U D L' U D R' U D L' U D"))
@@ -33,6 +46,8 @@ tick = time.time()
 # robot.execute(moves("U D R' L' U D R' L' U D R' L' U D R' L' U D R' L'"))
 # robot.execute(moves("U D R' L U D R L' U D R' L U D R L'"))
 # robot.execute(moves("U D R L U D R L U D R L U D R L U D R L"))
+
+# Half-turn corner cutting tests
 
 # robot.execute(moves("U' R2 F' D2 L' U2 R' F2 D' L2 U' R2 F' D2 L' U2 R' F2 D' L2"))
 # robot.execute(moves("U R2 F D2 L U2 R F2 D L2 U R2 F D2 L U2 R F2 D L2"))

@@ -13,10 +13,11 @@ NAME_TO_MOVE = {m: i for i, m in enumerate([
     "D", "D2", "D'", "L", "L2", "L'"
 ])}
 
-# TODO: There is still some small ~1/100 "blemish" in the solver where we get solutions like 
-# (U D) U' due to not applying any move restrictions in the phase 2 transistions. This causes 
-# trouble for our robot but we will handle this on the solver level at a later time.
-# TODO: Make the merging a solver feature in general (i.e. with a "-c" option).
+# TODO: In some very rare cases (maybe ~1/100) the solver will return solutions of the form
+# "(U D) U'" (or similar) due to missing move restrictions during the phase transitions.
+# These will not be merged properly, however this is an issue we will want to fix at the
+# solver level and thus ignore it here for now. In general, the move merging should be
+# integrated to the solver at some point in the future.
 
 # Convert string solution to move IDs and merge consecutive quarter-turns (also axial ones)  to half-turns
 def convert_sol(sol):
@@ -28,6 +29,7 @@ def convert_sol(sol):
     splits1 = []
     i = 0
     while i < len(splits):
+        # While all the case distinctions are very ugly, this is just the most straight forward way to get the job done
         if axial[i]:
             if i < len(splits) - 2:
                 if axial[i + 2]: # `splits[i + 3]` must exist
@@ -101,7 +103,7 @@ class Solver:
         self.proc.stdin.write(('solve %s -1 %d\n' % (facecube, SOLVE_TIME)).encode())
         self.proc.stdin.flush() # command needs to be received instantly
         sol = self.proc.stdout.readline().decode()[:-1] # strip trailing '\n'
-        print(sol) # TODO: here for debugging purposes
+        print(sol) # NOTE: here for debugging purposes
         self.proc.stdout.readline() # clear time taken message
         self.proc.stdout.readline() # clear "Ready!" message 
         return convert_sol(sol) if 'Error' not in sol else None
@@ -113,8 +115,4 @@ class Solver:
         self.proc.stdout.readline() # "Ready!"
         print(scramble)
         return convert_sol(scramble) # scrambling will never fail
-
-if __name__ == '__main__':
-    with Solver() as solver:
-        print(solver.solve('BDULURDLUFBBRRBUBULBLFFFFRRRDBFDDLRFDUFLLUBDDLLRUBFRUD'))
 

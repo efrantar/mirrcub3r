@@ -27,6 +27,7 @@ def cmd_rotate(ports, deg):
         ev3.LCX(1)
     ])
 
+# Wait for any potentially ongoing rotations to complete.
 def cmd_ready(ports):
     return b''.join([
         ev3.opOutput_Ready,
@@ -52,11 +53,11 @@ def cmd_waitdeg_wait(deg, waitport, tarvar, waitvar):
         ev3.LCX(-9)
     ])
 
-# Return any individual port of a port-bitmask
+# Return some individual port of a port-bitmask
 def some_port(ports):
     return 1 << ((ports & -ports).bit_length() - 1)
 
-# Peform a single face cube move
+# Peform a single face move
 def rotate(brick, ports, deg, waitdeg):
     waitport = some_port(ports)
     cmd = cmd_ready(ports)
@@ -76,7 +77,7 @@ def rotate1(brick, ports1, ports2, deg1, deg2, waitdeg):
     brick.send_direct_cmd(cmd, global_mem=8)
 
 # Perform an axial move where one side is half-turn and the other a quarter-turn.
-# In this case we want to start the latter turn a little later so that the both
+# In this case we want to start the latter turn a little later so that they both
 # end jointly and are thus aligned by the next move.
 def rotate2(brick, ports1, ports2, deg1, deg2, waitdeg1, waitdeg2):
     waitport = some_port(ports1)
@@ -100,13 +101,4 @@ def is_pressed(brick, port):
         ev3.GVX(0) 
     ])
     return struct.unpack('<b', brick.send_direct_cmd(cmd, global_mem=1)[5:])[0] > 0
-
-
-if __name__ == '__main__':
-    brick = ev3.EV3(protocol='Usb', host='00:16:53:40:CE:B6')
-
-    import time
-    tick = time.time()
-    rotate(brick, ev3.PORT_A + ev3.PORT_B + ev3.PORT_C + ev3.PORT_D, 54, 28)
-    print(time.time() - tick)
 

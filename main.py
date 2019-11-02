@@ -1,4 +1,4 @@
-# Main program controlling the robot; not much is happening here, we just use call the appropriate
+# Main program controlling the robot; not much is happening here, we just call the appropriate
 # tools implemented in the other files.
 
 import pickle
@@ -41,7 +41,7 @@ with Solver() as solver:
         # Now actually start solving
 
         frame = cam.frame()
-        # TODO: We start timing only after we have received a frame from the camera and processing starts.
+        # NOTE: We start timing only after we have received a frame from the camera and start any processing.
         # While this might not be 100% conform to the Guiness World Record rules, I am (at least at this point)
         # not interested in optimizing the camera latency as I do not think this should be an integral part
         # of a cube-solving robot.

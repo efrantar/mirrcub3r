@@ -2,8 +2,7 @@
 __pycache__
 *.pyc
 
-video
-scans
+videos
 res
 twophase
 twophase.tbl
