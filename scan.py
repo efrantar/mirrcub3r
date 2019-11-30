@@ -334,7 +334,7 @@ if __name__ == '__main__':
     import time
 
     points = np.array(pickle.load(open('scan-pos.pkl', 'rb')))   
-    extractor = ColorExtractor(points, 5)
+    extractor = ColorExtractor(points, 20)
     matcher = ColorMatcher()
 
     cam = IpCam('http://192.168.178.25:8080/shot.jpg')

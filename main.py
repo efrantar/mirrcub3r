@@ -22,7 +22,7 @@ with Solver() as solver:
     print('Connected to robot.')
 
     points = np.array(pickle.load(open('scan-pos.pkl', 'rb')))
-    extractor = ColorExtractor(points, 10)
+    extractor = ColorExtractor(points, 20)
     matcher = ColorMatcher()
     cam = IpCam(CAM_URL)
     print('Scanning set up.')
