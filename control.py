@@ -112,6 +112,8 @@ def optim_halfdirs(sol):
     return sol1
 
 
+SAFETY = 1.25
+
 # [][0] for quarter- and [][1] for half-turns
 WAITDEG = [
     [22, 66], # CUT
@@ -127,8 +129,12 @@ WAITDEG = [
     [24, 70]  # AXAX_ANTICUT
 ]
 
+for i in range(len(WAITDEG)):
+    for j in [0, 1]:
+        WAITDEG[i][j] = int(WAITDEG[i][j] * SAFETY)
+
 # For half + quarter axial turns
-SPECIAL_AX_WAITDEG = 5
+SPECIAL_AX_WAITDEG = int(5 * SAFETY)
 
 Motor = namedtuple('Motor', ['brick', 'ports'])
 

@@ -46,13 +46,13 @@ def main():
                 continue
             # Now actually start solving
 
+            gui.reset()
             cam.flash(True)
             frame = cam.frame()
             # NOTE: We start timing only after we have received a frame from the camera and start any processing.
             # While this might not be 100% conform to the Guiness World Record rules, I am (at least at this point)
             # not interested in optimizing the camera latency as I do not think this should be an integral part
             # of a cube-solving robot.
-            gui.reset()
             gui.start()
             start = time.time()
             print('Scanning ...')
