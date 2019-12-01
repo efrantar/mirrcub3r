@@ -1,10 +1,12 @@
 # Main program controlling the robot; not much is happening here, we just call the appropriate
 # tools implemented in the other files.
 
+from configparser import ConfigParser
 import pickle
 import subprocess
 import threading
 import time
+from threading import Thread
 
 import numpy as np
 
@@ -12,8 +14,9 @@ from control import *
 from scan import *
 from solve import *
 
-# Fortunately, this seems to stay rather consistent
-CAM_URL = 'http://192.168.178.25:8080/shot.jpg'
+config = ConfigParser()
+config.read('config')
+config = config['DEFAULT']
 
 with Solver() as solver:
     print('Solver initialized.')
@@ -21,10 +24,10 @@ with Solver() as solver:
     robot = Robot()
     print('Connected to robot.')
 
-    points = np.array(pickle.load(open('scan-pos.pkl', 'rb')))
-    extractor = ColorExtractor(points, 20)
+    points = np.array(pickle.load(open(config['pos'], 'rb')))
+    extractor = ColorExtractor(points, int(config['scan_size']))
     matcher = ColorMatcher()
-    cam = IpCam(CAM_URL)
+    cam = IpCam(config['cam'])
     print('Scanning set up.')
 
     print('Ready.') # we don't want to print this again and again while waiting for button presses
@@ -40,6 +43,7 @@ with Solver() as solver:
             continue
         # Now actually start solving
 
+        cam.flash(True)
         frame = cam.frame()
         # NOTE: We start timing only after we have received a frame from the camera and start any processing.
         # While this might not be 100% conform to the Guiness World Record rules, I am (at least at this point)
@@ -53,11 +57,17 @@ with Solver() as solver:
         sol = solver.solve(facecube)
         print(time.time() - start)
 
+        # Turn off flash only after processor is not busy with solving anymore
+        flash_off = Thread(target=lambda: cam.flash(False)) 
+        flash_off.start()
+
         if sol is not None:
             print('Executing ...')
             robot.execute(sol)
             print('Solved! %fs' % (time.time() - start))
         else:
             print('Error.')
+        
+        flash_off.join()
         print('Ready.')
 

@@ -2,6 +2,7 @@
 # It is rather primitive and not at all user-friendly yet it gets the job done decently enough.
 
 
+from configparser import ConfigParser
 import os
 import pickle
 import sys
@@ -11,22 +12,41 @@ import cv2
 import numpy as np
 
 from scan import *
+from solve import *
 
 
-IMAGE = sys.argv[1]
+DEBUG = False
+if DEBUG:
+    print('Debugging.')
+    solver = Solver()
+    solver.__enter__() # ugly but works
+
+config = ConfigParser()
+config.read('config')
+config = config['DEFAULT']
+
 GUI = 'Scan Setup'
 COLOR = (0, 0, 0)
-FILE = 'scan-pos.pkl'
-SIZE = 5
+FILE = config['pos']
+SIZE = int(config['scan_size']) // 4
 
 
 def scale(points, s):
     return [[(int(s * x), int(s * y)) for x, y in ps] for ps in points]
 
+def frame():
+    cam = IpCam(config['cam'])
+    cam.flash(True)
+    frame = cam.frame()
+    cam.flash(False)
+    return frame
 
-image_og = cv2.imread(IMAGE)
+
+image_og = cv2.imread(sys.argv[1]) if len(sys.argv) > 1 else frame()
 image = cv2.resize(image_og, (image_og.shape[1] // 2, image_og.shape[0] // 2))
 image1 = image.copy()
+
+
 
 if os.path.exists(FILE):
     points = pickle.load(open(FILE, 'rb'))
@@ -36,6 +56,14 @@ else:
 i = len(points)
 points.append([])
 
+
+def update_cam():
+    global image_og
+    global image
+    global image1
+    image_og = frame()
+    image = cv2.resize(image_og, (image_og.shape[1] // 2, image_og.shape[0] // 2))
+    image1 = image.copy()
 
 def show_squares():
     global image1
@@ -73,11 +101,15 @@ def show_matched():
     tick = time.time()    
     colors = extractor.extract_bgrs(image_og)
     matcher = ColorMatcher()
-    facecube = matcher.match(colors)
+    facecube = matcher.match(colors, debug=DEBUG)
     print(time.time() - tick)
 
     if facecube == '':
         facecube = 'E' * 54
+
+    if DEBUG:
+        if solver.solve(facecube) is None:
+            facecube = 'E' * 54
 
     global image1
     image1 = image.copy()
@@ -129,6 +161,9 @@ while True:
     if key == ord('i'):
         points.append([])
         i += 1
+    elif key == ord('c'):
+        update_cam()
+        show()
     elif key == ord('s'):
         show = show_squares
         show()

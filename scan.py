@@ -1,6 +1,7 @@
 from collections import namedtuple
 import copy
 from heapq import *
+import time
 import urllib.request
 
 import numpy as np
@@ -322,33 +323,12 @@ class IpCam:
         self.url = url
 
     def frame(self):
-        frame = urllib.request.urlopen(self.url)
+        frame = urllib.request.urlopen(self.url + '/shot.jpg')
         frame = np.array(bytearray(frame.read()), dtype=np.uint8)
         frame = cv2.imdecode(frame, -1) # choose encoding automatically -> default: BGR
         return frame
 
-
-# Very useful to test if scanning is not working without having to boot the robot
-if __name__ == '__main__':
-    import pickle
-    import time
-
-    points = np.array(pickle.load(open('scan-pos.pkl', 'rb')))   
-    extractor = ColorExtractor(points, 20)
-    matcher = ColorMatcher()
-
-    cam = IpCam('http://192.168.178.25:8080/shot.jpg')
-    cv2.imwrite('scan.jpg', cam.frame())
-    image = cv2.imread('scan.jpg')
- 
-    tick = time.time()
-    scans = extractor.extract_bgrs(image)
-    facecube = matcher.match(scans, debug=True)
-    print(time.time() - tick)
-    print(facecube)
-
-    if facecube != '':
-        from solve import *
-        with Solver() as solver:
-            print(solver.solve(facecube))
+    def flash(self, on):
+        urllib.request.urlopen(self.url + ('/enabletorch' if on else '/disabletorch'))
+        time.sleep(.5)
 

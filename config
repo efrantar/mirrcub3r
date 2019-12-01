@@ -1,0 +1,8 @@
+[DEFAULT]
+cam = http://192.168.178.25:8080
+brick0 = 00:16:53:7F:36:D9
+brick1 = 00:16:53:40:CE:B6
+brick2 = 00:16:53:4A:BA:BA
+pos = pos.pkl
+scan_size = 20
+
