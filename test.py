@@ -22,7 +22,7 @@ print('Connected.')
 tick = time.time()
 
 # Scramble for the 0.929 solve
-# robot.execute(moves("L2 U' F2 U' R' L U R' U' D' R L F' D R' U D L' U D' R U"))
+robot.execute(moves("L2 U' F2 U' R' L U R' U' D' R L F' D R' U D L' U D' R U"))
 
 # Sample scramble for POV solve video
 # robot.execute(moves("D R2 L2 U D R2 L2 F R L D R L U D L' F D' R' D' L F D R' U'"))

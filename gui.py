@@ -10,15 +10,7 @@ class TimerGUI:
 
         self.timel = Label(self.gui, text='seconds', font=('Mono Bold', 150), name='time')
         self.timel.config(anchor=CENTER)
-        self.timel.pack()
-
-        self.mirrcub3rl = Label(self.gui, text='mirrcub3r', font=('Arial', 100))
-        self.mirrcub3rl.config(anchor=CENTER)
-        self.mirrcub3rl.pack()
-
-        self.credits = Label(self.gui, text='by Elias Frantar', font=('Arial', 50))
-        self.credits.config(anchor=CENTER)
-        self.credits.pack()
+        self.timel.pack(expand=True)
 
         self.reset()
         

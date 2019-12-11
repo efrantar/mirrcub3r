@@ -32,6 +32,8 @@ def main():
         cam = IpCam(config['cam'])
         print('Scanning set up.')
 
+        flash = False
+
         print('Ready.') # we don't want to print this again and again while waiting for button presses
         while True: # polling is the most straight-forward way to check both buttons at once
             time.sleep(.05) # 50ms should be sufficient for a smooth experience
@@ -41,13 +43,20 @@ def main():
                 start = time.time()
                 robot.execute(scramble)
                 print('Scrambled! %fs' % (time.time() - start))
+                cam.flash(False)
+                flash = False
                 continue
             elif not robot.solve_pressed():
                 continue
+            else:
+                if not flash:
+                    gui.reset()
+                    cam.flash(True)
+                    flash = True
+                    continue
             # Now actually start solving
 
             gui.reset()
-            cam.flash(True)
             frame = cam.frame()
             # NOTE: We start timing only after we have received a frame from the camera and start any processing.
             # While this might not be 100% conform to the Guiness World Record rules, I am (at least at this point)
@@ -62,19 +71,22 @@ def main():
             sol = solver.solve(facecube)
             print(time.time() - start)
 
-            # Turn off flash only after processor is not busy with solving anymore
-            flash_off = Thread(target=lambda: cam.flash(False)) 
-            flash_off.start()
-
             if sol is not None:
+                # Turn off flash only after processor is not busy with solving anymore
+                flash_off = Thread(target=lambda: cam.flash(False)) 
+                flash_off.start()
+
                 print('Executing ...')
                 robot.execute(sol)
                 print('Solved! %fs' % (time.time() - start))
+            
+                gui.stop()
+                flash_off.join()
+                flash = False
             else:
                 print('Error.')
-            gui.stop()
+                gui.stop()
             
-            flash_off.join()
             print('Ready.')
 
 gui = TimerGUI()
