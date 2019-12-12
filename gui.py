@@ -12,11 +12,19 @@ class TimerGUI:
         self.timel.config(anchor=CENTER)
         self.timel.pack(expand=True)
 
+        self.state = False
+        self.gui.bind("<F11>", self.toggle_fullscreen)
+
         self.reset()
         
     def show(self, parallel):
         self.gui.after(0, lambda: Thread(target=parallel).start())
         self.gui.mainloop()
+
+    def toggle_fullscreen(self, event=None):
+        self.state = not self.state
+        self.gui.attributes('-fullscreen', self.state)
+        return 'break'
 
     def reset(self):
         self.running = False
