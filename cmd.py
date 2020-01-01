@@ -102,3 +102,14 @@ def is_pressed(brick, port):
     ])
     return struct.unpack('<b', brick.send_direct_cmd(cmd, global_mem=1)[5:])[0] > 0
 
+if __name__ == '__main__':
+    brick = ev3.EV3(protocol='Usb', host='00:16:53:7F:36:D9')
+    
+    import time
+    # time.sleep(5)
+    tick = time.time()
+    rotate(brick, ev3.PORT_A + ev3.PORT_B, 30, 15)
+    # rotate(brick, ev3.PORT_C + ev3.PORT_D, 54, 53)
+    print(time.time() - tick)
+
+

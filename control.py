@@ -112,8 +112,8 @@ def optim_halfdirs(sol):
     return sol1
 
 
-SAFETY = 1.25
-# SAFETY = 1.
+# SAFETY = 1.25 # noticeably slower + but quite a bit more reliable
+SAFETY = 1.
 
 # [][0] for quarter- and [][1] for half-turns
 WAITDEG = [
