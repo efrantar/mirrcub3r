@@ -1,3 +1,5 @@
+**Note:** Unless you are particularly interested in the mirror system (that is exclusive to mirrcub3r), you will probably  rather want to take a look at the code of my follow-up design "SquidCuber" (https://github.com/efrantar/squidcuber) as it improves in many key aspects.
+
 mirrcub3r
 =========
 
